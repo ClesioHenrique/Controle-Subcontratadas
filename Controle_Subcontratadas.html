@@ -80,6 +80,39 @@ table.rep tr:hover td{background:#f7f9fb;}
 
 .notes{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-top:20px;font-size:12px;color:var(--text-muted);}
 .notes summary{cursor:pointer;font-weight:700;color:var(--navy);}
+
+.tabnav{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;}
+.tab-btn{font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text-muted);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:8px 16px;cursor:pointer;}
+.tab-btn:hover{color:var(--navy);}
+.tab-btn.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.status-badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:10.5px;font-weight:700;}
+.status-badge.st-ok{background:var(--green-dark);color:#fff;}
+.status-badge.st-pend{background:var(--warn-bg);color:var(--warn);}
+td.num.neg{color:var(--danger);}
+
+#print-content{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  .confronto-banner, .toolbar, .filters, .tabnav, #progress-panel, .btn, .notes{display:none !important;}
+  #print-content, #print-content *{visibility:visible;}
+  #print-content{display:block;position:absolute;left:0;top:0;width:100%;padding:0;}
+  .print-head{border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:16px;}
+  .print-head .co{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);}
+  .print-head h1{font-size:18px;color:var(--navy);margin:4px 0 2px;}
+  .print-head .meta{font-size:11px;color:var(--text-muted);}
+  .print-kpis{display:flex;gap:14px;margin-bottom:16px;}
+  .print-kpi{flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .print-kpi .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;}
+  .print-kpi .v{font-size:16px;font-weight:800;color:var(--navy);}
+  .print-content table{width:100%;border-collapse:collapse;font-size:11px;}
+  .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:6px 8px;border:1px solid var(--border);}
+  .print-content td{padding:5px 8px;border:1px solid var(--border);}
+  .print-content td.num{text-align:right;}
+  .print-foot{margin-top:16px;font-size:10px;color:var(--text-muted);}
+}
 </style>
 </head>
 <body>
@@ -121,6 +154,13 @@ table.rep tr:hover td{background:#f7f9fb;}
 
   <div id="dash-content" style="display:none;">
 
+  <div class="tabnav">
+    <button class="tab-btn active" data-tab="geral">Vis&atilde;o Geral</button>
+    <button class="tab-btn" data-tab="pendencias">FR'S Emitidas x Pend&ecirc;ncias</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-geral">
+
   <div class="filters">
     <div class="filter-field"><label>Fornecedor</label>
       <select id="f-fornecedor"><option value="">Todos</option></select>
@@ -157,16 +197,68 @@ table.rep tr:hover td{background:#f7f9fb;}
 
   </div>
 
+  <div class="tab-panel" id="tab-pendencias">
+
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-print">&#128424; Imprimir / Exportar PDF</button>
+      <span class="src-info">Vers&atilde;o resumida por fornecedor e m&ecirc;s &mdash; pronta para envio por e-mail.</span>
+    </div>
+
+    <div class="filters">
+      <div class="filter-field"><label>Fornecedor</label>
+        <select id="p-fornecedor"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-field"><label>Status</label>
+        <select id="p-status">
+          <option value="">Todos</option>
+          <option value="Faturado">Faturado</option>
+          <option value="Pendente">Pendente</option>
+        </select>
+      </div>
+      <div class="filter-field"><label>M&ecirc;s/Ano de</label>
+        <select id="p-mes-de"><option value="">--</option></select>
+      </div>
+      <div class="filter-field"><label>M&ecirc;s/Ano at&eacute;</label>
+        <select id="p-mes-ate"><option value="">--</option></select>
+      </div>
+      <button class="btn filter-clear" id="p-btn-clear">Limpar filtros</button>
+    </div>
+
+    <div class="kpi-grid" id="p-kpi-grid"></div>
+
+    <div class="panel" style="margin-bottom:16px;">
+      <h2>Resumo por fornecedor</h2>
+      <div class="table-wrap"><table class="rep" id="tbl-resumo-forn">
+        <thead><tr><th>Fornecedor</th><th class="num">Medido (R$)</th><th class="num">Faturado (R$)</th><th class="num">Pendente (R$)</th><th class="num">% Faturado</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+    <div class="panel">
+      <h2>Detalhe por m&ecirc;s e fornecedor</h2>
+      <div class="table-wrap"><table class="rep" id="tbl-pendencias">
+        <thead><tr><th>M&ecirc;s/Ano</th><th>Fornecedor</th><th class="num">Medido (R$)</th><th class="num">FR'S Emitidas (R$)</th><th class="num">Diferen&ccedil;a (R$)</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table></div>
+    </div>
+
+  </div>
+
+  </div>
+
   <details class="notes">
     <summary>Notas metodol&oacute;gicas</summary>
     <ul>
-      <li>Cada linha representa um Boletim de Medi&ccedil;&atilde;o (BM) de um fornecedor em um m&ecirc;s espec&iacute;fico, com o valor <b>medido/cobrado</b> (n&atilde;o necessariamente o valor j&aacute; faturado) &mdash; extra&iacute;do das abas pr&oacute;prias de cada fornecedor ("1_LAU-RENT", "2_LOCAR", "3_UNIVALE"), coluna "COBRADO"/"BM'S".</li>
-      <li>A planilha de origem tem outras abas (composi&ccedil;&atilde;o por item, FR'S emitidas, diferen&ccedil;as medido x faturado) que n&atilde;o entraram nesta primeira vers&atilde;o &mdash; pe&ccedil;a para inclu&iacute;-las se forem &uacute;teis.</li>
+      <li>Aba "Vis&atilde;o Geral": cada linha representa um Boletim de Medi&ccedil;&atilde;o (BM) de um fornecedor em um m&ecirc;s espec&iacute;fico, com o valor <b>medido/cobrado</b> &mdash; extra&iacute;do das abas pr&oacute;prias de cada fornecedor ("1_LAU-RENT", "2_LOCAR", "3_UNIVALE"), coluna "COBRADO"/"BM'S".</li>
+      <li>Aba "FR'S Emitidas x Pend&ecirc;ncias": vem da aba "Resumo_GERAL" (medido x FR's emitidas x diferen&ccedil;a, j&aacute; consolidada por m&ecirc;s e fornecedor na planilha de origem). Status <b>Pendente</b> quando o medido supera o faturado em mais de R$ 500 (diferen&ccedil;as menores contam como reconciliadas); valores faturados a maior que o medido aparecem como <b>Faturado</b> tamb&eacute;m (n&atilde;o h&aacute; pend&ecirc;ncia de emiss&atilde;o nesse caso).</li>
+      <li>A planilha de origem tem outras abas (composi&ccedil;&atilde;o por item) que n&atilde;o entraram nesta vers&atilde;o &mdash; pe&ccedil;a para incluir se for &uacute;til.</li>
       <li>O bot&atilde;o <b>Selecionar Arquivo</b> l&ecirc; o .xlsx inteiro no navegador (nada sai da m&aacute;quina) e atualiza a tela na hora. Depois, <b>Baixar arquivo atualizado</b> salva um novo HTML para substituir este arquivo no projeto.</li>
     </ul>
   </details>
 
 </div>
+
+<div id="print-content"></div>
 
 <script>
 "use strict";
@@ -185,7 +277,9 @@ var fmtPct = v => (v==null||isNaN(v)?'0,0%':(v*100).toLocaleString('pt-BR',{mini
 var esc = s => String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 var FORN_BADGE = { 'Lau rent':'badge-laurent', 'Locar':'badge-locar', 'Univale':'badge-univale' };
 
-var state = { rows: RAW_BMS, sourceName: null, updatedAt: null };
+var RAW_RESUMO = [{"fornecedor":"Lau rent","mesano":"nov/24","medido":179776.8,"faturado":157750,"diferenca":22026.8},{"fornecedor":"Locar","mesano":"nov/24","medido":123700,"faturado":113200,"diferenca":10500},{"fornecedor":"Lau rent","mesano":"dez/24","medido":364625.53,"faturado":384708.33,"diferenca":-20082.8},{"fornecedor":"Locar","mesano":"dez/24","medido":355737.5,"faturado":366237.5,"diferenca":-10500},{"fornecedor":"Univale","mesano":"dez/24","medido":254953.44,"faturado":254953.46,"diferenca":-0.02},{"fornecedor":"Lau rent","mesano":"jan/25","medido":845825.18,"faturado":845825.16,"diferenca":0.02},{"fornecedor":"Locar","mesano":"jan/25","medido":907153.41,"faturado":907153.41,"diferenca":0},{"fornecedor":"Univale","mesano":"jan/25","medido":317393.22,"faturado":317823.91,"diferenca":-430.69},{"fornecedor":"Lau rent","mesano":"fev/25","medido":1007843.56,"faturado":1004613.57,"diferenca":3229.99},{"fornecedor":"Locar","mesano":"fev/25","medido":1096534.85,"faturado":1095337.86,"diferenca":1196.99},{"fornecedor":"Univale","mesano":"fev/25","medido":346757.82,"faturado":306150.06,"diferenca":40607.76},{"fornecedor":"Lau rent","mesano":"mar/25","medido":1135339.38,"faturado":1124244.58,"diferenca":11094.8},{"fornecedor":"Locar","mesano":"mar/25","medido":1220821.97,"faturado":1158068.21,"diferenca":62753.76},{"fornecedor":"Univale","mesano":"mar/25","medido":414706.31,"faturado":412360.71,"diferenca":2345.6},{"fornecedor":"Lau rent","mesano":"abr/25","medido":1190517.26,"faturado":1052384.26,"diferenca":138133},{"fornecedor":"Locar","mesano":"abr/25","medido":1323992.92,"faturado":1386745.68,"diferenca":-62752.76},{"fornecedor":"Univale","mesano":"abr/25","medido":475187.26,"faturado":475930.91,"diferenca":-743.65},{"fornecedor":"Lau rent","mesano":"mai/25","medido":1290394.11,"faturado":1193717.31,"diferenca":96676.8},{"fornecedor":"Locar","mesano":"mai/25","medido":1295387.09,"faturado":1295387.09,"diferenca":0},{"fornecedor":"Univale","mesano":"mai/25","medido":486289.89,"faturado":441103.28,"diferenca":45186.61},{"fornecedor":"Lau rent","mesano":"jun/25","medido":1094718.51,"faturado":1094718.52,"diferenca":-0.01},{"fornecedor":"Locar","mesano":"jun/25","medido":1457239.45,"faturado":1457239.37,"diferenca":0.08},{"fornecedor":"Univale","mesano":"jun/25","medido":588520.07,"faturado":535349.99,"diferenca":53170.08},{"fornecedor":"Lau rent","mesano":"jul/25","medido":1161486.7,"faturado":1161486.1,"diferenca":0.6},{"fornecedor":"Locar","mesano":"jul/25","medido":1501232.67,"faturado":1502429.67,"diferenca":-1197},{"fornecedor":"Univale","mesano":"jul/25","medido":735756.61,"faturado":388883.91,"diferenca":346872.7},{"fornecedor":"Lau rent","mesano":"ago/25","medido":1104609.6,"faturado":1071879,"diferenca":32730.6},{"fornecedor":"Locar","mesano":"ago/25","medido":1865785.13,"faturado":1839023.83,"diferenca":26761.3},{"fornecedor":"Univale","mesano":"ago/25","medido":761099.48,"faturado":867781.12,"diferenca":-106681.64},{"fornecedor":"Lau rent","mesano":"set/25","medido":1009997.87,"faturado":1009997.86,"diferenca":0.01},{"fornecedor":"Locar","mesano":"set/25","medido":1702402.85,"faturado":1729144.02,"diferenca":-26741.17},{"fornecedor":"Univale","mesano":"set/25","medido":648335.49,"faturado":808674.93,"diferenca":-160339.44},{"fornecedor":"Lau rent","mesano":"out/25","medido":1009662.2,"faturado":1031287.31,"diferenca":-21625.11},{"fornecedor":"Locar","mesano":"out/25","medido":1507206.39,"faturado":1405778.65,"diferenca":101427.74},{"fornecedor":"Univale","mesano":"out/25","medido":598725.95,"faturado":473310.98,"diferenca":125414.97},{"fornecedor":"Lau rent","mesano":"nov/25","medido":740314.89,"faturado":705658.85,"diferenca":34656.04},{"fornecedor":"Locar","mesano":"nov/25","medido":1101275.62,"faturado":1202703.26,"diferenca":-101427.64},{"fornecedor":"Univale","mesano":"nov/25","medido":546674.48,"faturado":776795.6,"diferenca":-230121.12},{"fornecedor":"Lau rent","mesano":"dez/25","medido":558456.57,"faturado":585720.08,"diferenca":-27263.51},{"fornecedor":"Locar","mesano":"dez/25","medido":621309.48,"faturado":621309.48,"diferenca":0},{"fornecedor":"Univale","mesano":"dez/25","medido":442810.33,"faturado":447365.57,"diferenca":-4555.24},{"fornecedor":"Lau rent","mesano":"jan/26","medido":551102.38,"faturado":551102.38,"diferenca":0},{"fornecedor":"Locar","mesano":"jan/26","medido":624382.08,"faturado":623542.08,"diferenca":840},{"fornecedor":"Univale","mesano":"jan/26","medido":451342.49,"faturado":463043.42,"diferenca":-11700.93},{"fornecedor":"Lau rent","mesano":"fev/26","medido":336424.2,"faturado":335025.43,"diferenca":1398.77},{"fornecedor":"Locar","mesano":"fev/26","medido":587923.28,"faturado":587923.28,"diferenca":0},{"fornecedor":"Univale","mesano":"fev/26","medido":418146.77,"faturado":973914.24,"diferenca":-555767.47},{"fornecedor":"Lau rent","mesano":"mar/26","medido":259582.59,"faturado":249206.59,"diferenca":10376},{"fornecedor":"Locar","mesano":"mar/26","medido":690330.68,"faturado":691170.69,"diferenca":-840.01},{"fornecedor":"Univale","mesano":"mar/26","medido":413777.12,"faturado":558196.51,"diferenca":-144419.39},{"fornecedor":"Lau rent","mesano":"abr/26","medido":194064.4,"faturado":453936.72,"diferenca":-259872.32},{"fornecedor":"Locar","mesano":"abr/26","medido":224437.58,"faturado":224437.66,"diferenca":-0.08},{"fornecedor":"Univale","mesano":"abr/26","medido":432994.83,"faturado":446169.2,"diferenca":-13174.37},{"fornecedor":"Lau rent","mesano":"mai/26","medido":0,"faturado":21479.68,"diferenca":-21479.68},{"fornecedor":"Locar","mesano":"mai/26","medido":69296.52,"faturado":69296.52,"diferenca":0},{"fornecedor":"Univale","mesano":"mai/26","medido":387034.85,"faturado":0,"diferenca":387034.85},{"fornecedor":"Locar","mesano":"jun/26","medido":68049.89,"faturado":68049.87,"diferenca":0.02},{"fornecedor":"Univale","mesano":"jun/26","medido":299407.31,"faturado":0,"diferenca":299407.31},{"fornecedor":"Locar","mesano":"jul/26","medido":81170.38,"faturado":0,"diferenca":81170.38},{"fornecedor":"Univale","mesano":"jul/26","medido":272379.16,"faturado":0,"diferenca":272379.16}];
+
+var state = { rows: RAW_BMS, resumo: RAW_RESUMO, sourceName: null, updatedAt: null };
 
 /* ================= filtros + agregacao ================= */
 function distinctSorted(rows, field, sorter){
@@ -283,6 +377,8 @@ function initFromData(){
   if (!hasData) return;
   populateFilters();
   applyFiltersAndRender();
+  populatePendFilters();
+  applyPendFiltersAndRender();
 }
 
 ['f-fornecedor','f-mes-de','f-mes-ate'].forEach(function(id){
@@ -293,6 +389,124 @@ document.getElementById('btn-clear').addEventListener('click', function(){
   document.getElementById('f-mes-de').value = '';
   document.getElementById('f-mes-ate').value = '';
   applyFiltersAndRender();
+});
+
+/* ================= abas ================= */
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ================= FR'S Emitidas x Pendencias ================= */
+var PEND_THRESHOLD = 500;
+function statusOf(diferenca){ return diferenca > PEND_THRESHOLD ? 'Pendente' : 'Faturado'; }
+
+function populatePendFilters(){
+  var r = state.resumo;
+  var selF = document.getElementById('p-fornecedor');
+  selF.innerHTML = '<option value="">Todos</option>';
+  distinctSorted(r,'fornecedor').forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; selF.appendChild(o); });
+  var meses = distinctSorted(r,'mesano', function(a,b){ return mesAnoSortKey(a)-mesAnoSortKey(b); });
+  ['p-mes-de','p-mes-ate'].forEach(function(id){
+    var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
+    meses.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  });
+}
+
+function computePendAgg(rows){
+  var totalMedido = rows.reduce(function(a,r){ return a+r.medido; },0);
+  var totalFaturado = rows.reduce(function(a,r){ return a+r.faturado; },0);
+  var totalPendente = rows.reduce(function(a,r){ return a + Math.max(0, r.diferenca); },0);
+  var porFornecedor = {};
+  distinctSorted(rows,'fornecedor').forEach(function(f){
+    var rf = rows.filter(function(r){ return r.fornecedor===f; });
+    var med = rf.reduce(function(a,r){ return a+r.medido; },0);
+    var fat = rf.reduce(function(a,r){ return a+r.faturado; },0);
+    var pend = rf.reduce(function(a,r){ return a+Math.max(0,r.diferenca); },0);
+    porFornecedor[f] = { medido:med, faturado:fat, pendente:pend };
+  });
+  return { totalMedido:totalMedido, totalFaturado:totalFaturado, totalPendente:totalPendente, porFornecedor:porFornecedor };
+}
+
+function applyPendFiltersAndRender(){
+  var fForn = document.getElementById('p-fornecedor').value;
+  var fStatus = document.getElementById('p-status').value;
+  var fMesDe = document.getElementById('p-mes-de').value;
+  var fMesAte = document.getElementById('p-mes-ate').value;
+  var rows = state.resumo;
+  if (fForn) rows = rows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fMesDe) { var k=mesAnoSortKey(fMesDe); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k; }); }
+  if (fMesAte) { var k2=mesAnoSortKey(fMesAte); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k2; }); }
+  if (fStatus) rows = rows.filter(function(r){ return statusOf(r.diferenca)===fStatus; });
+  renderPend(computePendAgg(rows), rows);
+}
+
+function renderPend(a, rows){
+  document.getElementById('p-kpi-grid').innerHTML =
+    kpiCard('Total medido', fmtBRLM(a.totalMedido), null, 'accent') +
+    kpiCard('Total faturado (FR\'S)', fmtBRLM(a.totalFaturado), fmtPct(a.totalMedido?a.totalFaturado/a.totalMedido:0), 'ok') +
+    kpiCard('Total pendente', fmtBRLM(a.totalPendente), fmtPct(a.totalMedido?a.totalPendente/a.totalMedido:0), a.totalPendente>0?'':'ok');
+
+  var forns = Object.keys(a.porFornecedor).sort();
+  document.getElementById('tbl-resumo-forn').querySelector('tbody').innerHTML = forns.map(function(f){
+    var d = a.porFornecedor[f];
+    return '<tr><td><span class="badge '+(FORN_BADGE[f]||'')+'">'+esc(f)+'</span></td><td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td>'+
+      '<td class="num'+(d.pendente>0?' neg':'')+'">'+fmtBRL(d.pendente)+'</td><td class="num">'+fmtPct(d.medido?(d.medido-d.pendente)/d.medido:0)+'</td></tr>';
+  }).join('');
+
+  var sorted = rows.slice().sort(function(x,y){ return mesAnoSortKey(y.mesano)-mesAnoSortKey(x.mesano); });
+  document.getElementById('tbl-pendencias').querySelector('tbody').innerHTML = sorted.map(function(r){
+    var st = statusOf(r.diferenca);
+    return '<tr><td>'+esc(r.mesano)+'</td><td><span class="badge '+(FORN_BADGE[r.fornecedor]||'')+'">'+esc(r.fornecedor)+'</span></td>'+
+      '<td class="num">'+fmtBRL(r.medido)+'</td><td class="num">'+fmtBRL(r.faturado)+'</td>'+
+      '<td class="num'+(r.diferenca>PEND_THRESHOLD?' neg':'')+'">'+fmtBRL(r.diferenca)+'</td>'+
+      '<td><span class="status-badge '+(st==='Pendente'?'st-pend':'st-ok')+'">'+st+'</span></td></tr>';
+  }).join('');
+
+  window.__lastPendAgg = a;
+}
+
+document.getElementById('p-fornecedor').addEventListener('change', applyPendFiltersAndRender);
+document.getElementById('p-status').addEventListener('change', applyPendFiltersAndRender);
+document.getElementById('p-mes-de').addEventListener('change', applyPendFiltersAndRender);
+document.getElementById('p-mes-ate').addEventListener('change', applyPendFiltersAndRender);
+document.getElementById('p-btn-clear').addEventListener('click', function(){
+  document.getElementById('p-fornecedor').value = '';
+  document.getElementById('p-status').value = '';
+  document.getElementById('p-mes-de').value = '';
+  document.getElementById('p-mes-ate').value = '';
+  applyPendFiltersAndRender();
+});
+
+document.getElementById('btn-print').addEventListener('click', function(){
+  var a = window.__lastPendAgg;
+  if (!a) return;
+  var forns = Object.keys(a.porFornecedor).sort();
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var html = '<div class="print-head">'+
+    '<div class="co">Techint Engenharia e Constru&ccedil;&atilde;o &middot; Painel de Confronto</div>'+
+    '<h1>Controle de Subcontratadas &mdash; FR\'S Emitidas x Pend&ecirc;ncias</h1>'+
+    '<div class="meta">Cess&atilde;o USM &middot; Lau-Rent, Locar e Univale &middot; Gerado em '+hoje+'</div>'+
+    '</div>'+
+    '<div class="print-kpis">'+
+      '<div class="print-kpi"><div class="l">Total medido</div><div class="v">'+fmtBRLM(a.totalMedido)+'</div></div>'+
+      '<div class="print-kpi"><div class="l">Total faturado</div><div class="v">'+fmtBRLM(a.totalFaturado)+'</div></div>'+
+      '<div class="print-kpi"><div class="l">Total pendente</div><div class="v">'+fmtBRLM(a.totalPendente)+'</div></div>'+
+    '</div>'+
+    '<div class="print-content"><table><thead><tr><th>Fornecedor</th><th class="num">Medido (R$)</th><th class="num">Faturado (R$)</th><th class="num">Pendente (R$)</th><th class="num">% Faturado</th></tr></thead><tbody>'+
+    forns.map(function(f){
+      var d = a.porFornecedor[f];
+      return '<tr><td>'+esc(f)+'</td><td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num">'+fmtBRL(d.pendente)+'</td><td class="num">'+fmtPct(d.medido?(d.medido-d.pendente)/d.medido:0)+'</td></tr>';
+    }).join('')+
+    '<tr style="font-weight:800;"><td>Total Geral</td><td class="num">'+fmtBRL(a.totalMedido)+'</td><td class="num">'+fmtBRL(a.totalFaturado)+'</td><td class="num">'+fmtBRL(a.totalPendente)+'</td><td class="num">'+fmtPct(a.totalMedido?(a.totalMedido-a.totalPendente)/a.totalMedido:0)+'</td></tr>'+
+    '</tbody></table></div>'+
+    '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx (aba Resumo_GERAL). Valores em Reais (R$).</div>';
+  document.getElementById('print-content').innerHTML = html;
+  window.print();
 });
 
 /* ================= leitura do .xlsx (ZIP + regex, sem SheetJS) ================= */
@@ -447,22 +661,48 @@ function extractSupplierRows(rows, fornecedorLabel){
   return out;
 }
 
+function extractResumoRows(rows){
+  var FORN_COLS = [
+    { label:'Lau rent', medido:3, faturado:4 },
+    { label:'Locar', medido:6, faturado:7 },
+    { label:'Univale', medido:9, faturado:10 }
+  ];
+  var out = [];
+  for (var r=6; r<rows.length; r++){
+    var row = rows[r]; if (!row) continue;
+    var mesano = mesAnoFromCell(row[1]);
+    if (!mesano) continue;
+    FORN_COLS.forEach(function(f){
+      var medido = (typeof row[f.medido]==='number') ? row[f.medido] : 0;
+      var faturado = (typeof row[f.faturado]==='number') ? row[f.faturado] : 0;
+      if (!medido && !faturado) return;
+      out.push({ fornecedor:f.label, mesano:mesano, medido:Math.round(medido*100)/100, faturado:Math.round(faturado*100)/100, diferenca:Math.round((medido-faturado)*100)/100 });
+    });
+  }
+  return out;
+}
+
 async function regenerateFromFile(file){
-  var sheets = await loadWorkbookSheets(file, { laurent:'lau', locar:'locar', univale:'univale' });
+  var sheets = await loadWorkbookSheets(file, { laurent:'lau', locar:'locar', univale:'univale', resumo:'resumo_geral' });
   log('Aba Lau-Rent: "'+sheets.laurent.sheetName+'" ('+sheets.laurent.rows.length+' linhas).');
   log('Aba Locar: "'+sheets.locar.sheetName+'" ('+sheets.locar.rows.length+' linhas).');
   log('Aba Univale: "'+sheets.univale.sheetName+'" ('+sheets.univale.rows.length+' linhas).');
+  log('Aba Resumo_GERAL: "'+sheets.resumo.sheetName+'" ('+sheets.resumo.rows.length+' linhas).');
   var lauRentRows = extractSupplierRows(sheets.laurent.rows, 'Lau rent');
   var locarRows = extractSupplierRows(sheets.locar.rows, 'Locar');
   var univaleRows = extractSupplierRows(sheets.univale.rows, 'Univale');
   var all = lauRentRows.concat(locarRows, univaleRows);
+  var resumoRows = extractResumoRows(sheets.resumo.rows);
   log('Total de BM\'S lidos: '+all.length+' (Lau-rent: '+lauRentRows.length+', Locar: '+locarRows.length+', Univale: '+univaleRows.length+').', 'ok');
-  return all;
+  log('Total de linhas de reconciliação (Resumo_GERAL): '+resumoRows.length+'.', 'ok');
+  return { rows: all, resumo: resumoRows };
 }
 
 function buildUpdatedHTML(){
-  var re = /var RAW_BMS = \[[\s\S]*?\];/;
-  var doc = PRISTINE_HTML.replace(re, 'var RAW_BMS = ' + JSON.stringify(state.rows) + ';');
+  var reBms = /var RAW_BMS = \[[\s\S]*?\];/;
+  var reResumo = /var RAW_RESUMO = \[[\s\S]*?\];/;
+  var doc = PRISTINE_HTML.replace(reBms, 'var RAW_BMS = ' + JSON.stringify(state.rows) + ';');
+  doc = doc.replace(reResumo, 'var RAW_RESUMO = ' + JSON.stringify(state.resumo) + ';');
   return '<!doctype html>\n' + doc;
 }
 function downloadUpdatedReport(){
@@ -491,9 +731,10 @@ fileInput.addEventListener('change', async function(){
   log('Lendo '+file.name+' ('+(file.size/1e6).toFixed(1)+' MB)...');
   setProgress(10);
   try{
-    var rows = await regenerateFromFile(file);
+    var result = await regenerateFromFile(file);
     setProgress(90);
-    state.rows = rows;
+    state.rows = result.rows;
+    state.resumo = result.resumo;
     state.sourceName = file.name;
     state.updatedAt = new Date().toISOString();
     initFromData();
