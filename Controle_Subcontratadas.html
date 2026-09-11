@@ -53,10 +53,11 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .kpi-card .value .v-pos{color:var(--green-dark);}
 .kpi-card .sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
 
-.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px;}
+.grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px;align-items:start;}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;}
 .panel h2{margin:0 0 10px;font-size:14px;color:var(--navy);}
-.chart-box{width:100%;min-height:280px;}
+.chart-box{width:100%;height:300px;}
+#chart-pend-cum{height:360px;}
 
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
 table.rep{border-collapse:collapse;width:100%;font-size:12.5px;}
@@ -540,7 +541,14 @@ function renderPendCharts(rows, forns, mesesUnicos){
     cumTraces.push({ type:'scatter', mode:'lines+markers', name:f+' · Medido (acum.)', x:mesesUnicos, y:yMed, line:{color:FORN_COLOR[f]||CHART_NAVY, dash:'dot', width:2}, marker:{size:4} });
     cumTraces.push({ type:'scatter', mode:'lines+markers', name:f+' · Faturado (acum.)', x:mesesUnicos, y:yFat, line:{color:FORN_COLOR[f]||CHART_NAVY, width:2.5}, marker:{size:4} });
   });
-  Plotly.react('chart-pend-cum', cumTraces, { margin:{t:10,b:60,l:60,r:10}, xaxis:{tickangle:-45}, yaxis:{title:'R$'}, legend:{orientation:'h', y:1.22, font:{size:9}}, font:{family:'Segoe UI',size:10} }, PLOTLY_CONFIG);
+  var cumLegendRows = forns.length>1 ? 2 : 1;
+  Plotly.react('chart-pend-cum', cumTraces, {
+    height: document.getElementById('chart-pend-cum').clientHeight,
+    margin:{t: cumLegendRows>1?70:40, b:60, l:60, r:10},
+    xaxis:{tickangle:-45}, yaxis:{title:'R$'},
+    legend:{orientation:'h', x:0, y: cumLegendRows>1?1.32:1.18, font:{size:9}},
+    font:{family:'Segoe UI',size:10}
+  }, PLOTLY_CONFIG);
 }
 
 function applyPendFiltersAndRender(){
