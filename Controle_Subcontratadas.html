@@ -96,7 +96,9 @@ table.rep tr:hover td{background:#f7f9fb;}
 .status-badge.st-pend{background:var(--warn-bg);color:var(--warn);}
 td.num.neg{color:var(--danger);font-weight:700;}
 td.num.pos{color:var(--green-dark);font-weight:700;}
-tr.total-row td{border-top:2px solid var(--navy);font-weight:800;background:var(--navy-100);}
+tr.total-row td{border-top:3px solid var(--navy);border-bottom:3px solid var(--navy);font-weight:800;font-size:13.5px;background:var(--navy-100);padding-top:10px;padding-bottom:10px;}
+tr.total-row td:first-child{border-left:3px solid var(--navy);border-radius:6px 0 0 6px;}
+tr.total-row td:last-child{border-right:3px solid var(--navy);border-radius:0 6px 6px 0;}
 table.pivot th.grp{text-align:center;border-left:2px solid var(--surface);}
 table.pivot th.grp.g-laurent{background:#dcebf8;color:var(--info-blue);}
 table.pivot th.grp.g-locar{background:#e4f6e1;color:var(--green-dark);}
@@ -104,6 +106,9 @@ table.pivot th.grp.g-univale{background:#fbf0dc;color:var(--warn);}
 table.pivot th.grp.g-total{background:var(--navy-100);color:var(--navy);}
 table.pivot th.sub{font-size:10.5px;font-weight:600;text-align:right;background:#f7f9fb;border-left:2px solid var(--surface);}
 table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
+table.pivot th.bmcol{background:var(--navy-100);color:var(--navy);text-align:center;}
+table.pivot td.bmcol{text-align:center;font-weight:700;color:var(--navy);background:#f7f9fb;}
+#chart-bm-combo{height:320px;margin-top:16px;}
 
 #print-content{display:none;}
 @media print{
@@ -179,19 +184,6 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
       <span class="src-info">Vers&atilde;o para impress&atilde;o inclui gr&aacute;ficos e detalhamento por BM.</span>
     </div>
 
-  <div class="filters">
-    <div class="filter-field"><label>Fornecedor</label>
-      <select id="f-fornecedor"><option value="">Todos</option></select>
-    </div>
-    <div class="filter-field"><label>M&ecirc;s/Ano de</label>
-      <select id="f-mes-de"><option value="">--</option></select>
-    </div>
-    <div class="filter-field"><label>M&ecirc;s/Ano at&eacute;</label>
-      <select id="f-mes-ate"><option value="">--</option></select>
-    </div>
-    <button class="btn filter-clear" id="btn-clear">Limpar filtros</button>
-  </div>
-
   <div class="kpi-grid" id="kpi-grid"></div>
 
   <div class="grid2">
@@ -207,7 +199,22 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
 
   <div class="panel" style="margin-bottom:16px;">
     <h2>BM'S x FR'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</h2>
+
+    <div class="filters">
+      <div class="filter-field"><label>Fornecedor</label>
+        <select id="f-fornecedor"><option value="">Todos</option></select>
+      </div>
+      <div class="filter-field"><label>M&ecirc;s/Ano de</label>
+        <select id="f-mes-de"><option value="">--</option></select>
+      </div>
+      <div class="filter-field"><label>M&ecirc;s/Ano at&eacute;</label>
+        <select id="f-mes-ate"><option value="">--</option></select>
+      </div>
+      <button class="btn filter-clear" id="btn-clear">Limpar filtros</button>
+    </div>
+
     <div class="table-wrap"><table class="rep pivot" id="tbl-bm"></table></div>
+    <div class="chart-box" id="chart-bm-combo"></div>
   </div>
 
   </div>
@@ -389,7 +396,7 @@ function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
 function renderBmReconciliation(rows, mesesUnicos){
   var forns = ALL_FORNS.filter(function(f){ return rows.some(function(r){ return r.fornecedor===f; }); });
   var showTotal = forns.length>1;
-  var head1 = '<th rowspan="2" class="mescol">Mês/Ano</th>' +
+  var head1 = '<th rowspan="2" class="mescol">Mês/Ano</th><th rowspan="2" class="bmcol">BM</th>' +
     forns.map(function(f){ return '<th colspan="3" class="grp g-'+FORN_SLUG[f]+'">'+esc(f)+'</th>'; }).join('') +
     (showTotal ? '<th colspan="3" class="grp g-total">Total Geral</th>' : '');
   var sub3 = '<th class="sub">BM\'S</th><th class="sub">FR\'S Emitidas</th><th class="sub">Saldo Pendente</th>';
@@ -397,8 +404,9 @@ function renderBmReconciliation(rows, mesesUnicos){
 
   var totPerForn = {}; forns.forEach(function(f){ totPerForn[f] = {medido:0, faturado:0}; });
   var grand = {medido:0, faturado:0};
+  var monthMedido = [], monthFaturado = [], monthPendAcum = [], acumPend = 0;
 
-  var body = mesesUnicos.map(function(m){
+  var body = mesesUnicos.map(function(m, idx){
     var totMed=0, totFat=0;
     var cells = forns.map(function(f){
       var r = findResumo(rows, m, f);
@@ -409,7 +417,10 @@ function renderBmReconciliation(rows, mesesUnicos){
     }).join('');
     grand.medido+=totMed; grand.faturado+=totFat;
     if (showTotal){ var totPend = totMed-totFat; cells += '<td class="num">'+fmtBRL(totMed)+'</td><td class="num">'+fmtBRL(totFat)+'</td><td class="num '+pendCls(totPend)+'">'+fmtBRL(totPend)+'</td>'; }
-    return '<tr><td>'+esc(m)+'</td>'+cells+'</tr>';
+    monthMedido.push(totMed); monthFaturado.push(totFat);
+    acumPend += (totMed-totFat); monthPendAcum.push(acumPend);
+    var bmLabel = 'BM '+String(idx+1).padStart(2,'0');
+    return '<tr><td>'+esc(m)+'</td><td class="bmcol">'+bmLabel+'</td>'+cells+'</tr>';
   }).join('');
 
   var footCells = forns.map(function(f){
@@ -417,10 +428,31 @@ function renderBmReconciliation(rows, mesesUnicos){
     return '<td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num '+pendCls(pend)+'">'+fmtBRL(pend)+'</td>';
   }).join('');
   if (showTotal){ var gPend = grand.medido-grand.faturado; footCells += '<td class="num">'+fmtBRL(grand.medido)+'</td><td class="num">'+fmtBRL(grand.faturado)+'</td><td class="num '+pendCls(gPend)+'">'+fmtBRL(gPend)+'</td>'; }
-  var foot = '<tr class="total-row"><td>Total_Geral</td>'+footCells+'</tr>';
+  var foot = '<tr class="total-row"><td colspan="2">Total_Geral</td>'+footCells+'</tr>';
 
   var tbl = document.getElementById('tbl-bm');
   tbl.innerHTML = '<thead><tr>'+head1+'</tr><tr>'+head2+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot>';
+
+  renderBmComboChart(mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
+}
+
+function renderBmComboChart(meses, medidoArr, faturadoArr, pendAcumArr){
+  var el = document.getElementById('chart-bm-combo');
+  if (!el) return;
+  var traces = [
+    { type:'bar', name:'BM\'S (Medido)', x:meses, y:medidoArr, marker:{color:CHART_INFO_BLUE}, hovertemplate:'%{x}<br>BM\'S: R$ %{y:,.2f}<extra></extra>' },
+    { type:'bar', name:'FR\'S Emitidas', x:meses, y:faturadoArr, marker:{color:CHART_GREEN}, hovertemplate:'%{x}<br>FR\'S: R$ %{y:,.2f}<extra></extra>' },
+    { type:'scatter', mode:'lines+markers', name:'Saldo Pendente Acumulado', x:meses, y:pendAcumArr, yaxis:'y2', line:{color:CHART_WARN,width:3}, marker:{size:6,color:CHART_WARN}, hovertemplate:'%{x}<br>Acumulado: R$ %{y:,.2f}<extra></extra>' }
+  ];
+  Plotly.react('chart-bm-combo', traces, {
+    barmode:'group',
+    margin:{t:30,b:60,l:60,r:60},
+    xaxis:{tickangle:-45},
+    yaxis:{title:'R$ por mês'},
+    yaxis2:{title:'R$ acumulado', overlaying:'y', side:'right'},
+    legend:{orientation:'h', y:1.18},
+    font:{family:'Segoe UI',size:10}
+  }, PLOTLY_CONFIG);
 }
 
 document.getElementById('btn-print-geral').addEventListener('click', async function(){
