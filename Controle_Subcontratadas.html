@@ -115,13 +115,14 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
   .print-head .co{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);}
   .print-head h1{font-size:18px;color:var(--navy);margin:4px 0 2px;}
   .print-head .meta{font-size:11px;color:var(--text-muted);}
-  .print-kpis{display:flex;gap:14px;margin-bottom:16px;}
-  .print-kpi{flex:1;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .print-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
+  .print-kpi{flex:1;min-width:110px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
   .print-kpi .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;}
   .print-kpi .v{font-size:16px;font-weight:800;color:var(--navy);}
-  .print-content table{width:100%;border-collapse:collapse;font-size:11px;}
-  .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:6px 8px;border:1px solid var(--border);}
-  .print-content td{padding:5px 8px;border:1px solid var(--border);}
+  .print-content img{max-width:100%;}
+  .print-content table{width:100%;border-collapse:collapse;font-size:10px;}
+  .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:5px 6px;border:1px solid var(--border);}
+  .print-content td{padding:4px 6px;border:1px solid var(--border);}
   .print-content td.num{text-align:right;}
   .print-foot{margin-top:16px;font-size:10px;color:var(--text-muted);}
 }
@@ -173,6 +174,11 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
 
   <div class="tab-panel active" id="tab-geral">
 
+    <div class="toolbar">
+      <button class="btn btn-primary" id="btn-print-geral">&#128424; Imprimir / Exportar PDF</button>
+      <span class="src-info">Vers&atilde;o para impress&atilde;o inclui gr&aacute;ficos e detalhamento por BM.</span>
+    </div>
+
   <div class="filters">
     <div class="filter-field"><label>Fornecedor</label>
       <select id="f-fornecedor"><option value="">Todos</option></select>
@@ -200,11 +206,8 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
-    <h2>Boletins de Medi&ccedil;&atilde;o (BM'S)</h2>
-    <div class="table-wrap"><table class="rep" id="tbl-bm">
-      <thead><tr><th>Fornecedor</th><th>BM</th><th>M&ecirc;s/Ano</th><th class="num">Valor Medido (R$)</th><th class="num">% do Total</th></tr></thead>
-      <tbody></tbody>
-    </table></div>
+    <h2>Boletins de Medi&ccedil;&atilde;o (BM'S) por m&ecirc;s e subcontratada</h2>
+    <div class="table-wrap"><table class="rep pivot" id="tbl-bm"></table></div>
   </div>
 
   </div>
@@ -373,12 +376,69 @@ function renderAll(a, rows){
     hovertemplate:'%{label}: R$ %{value:,.2f}<extra></extra>'
   }], { margin:{t:10,b:10,l:10,r:10}, showlegend:false, font:{family:'Segoe UI'} }, PLOTLY_CONFIG);
 
-  var sorted = rows.slice().sort(function(a,b){ return b.valor-a.valor; });
-  document.getElementById('tbl-bm').querySelector('tbody').innerHTML = sorted.map(function(r){
-    return '<tr><td><span class="badge '+(FORN_BADGE[r.fornecedor]||'')+'">'+esc(r.fornecedor)+'</span></td><td>'+esc(r.item)+'</td><td>'+esc(r.mesano)+'</td>'+
-      '<td class="num">'+fmtBRL(r.valor)+'</td><td class="num">'+fmtPct(a.totalValor?r.valor/a.totalValor:0)+'</td></tr>';
-  }).join('');
+  renderBmPivot(rows, a.mesesUnicos);
+  window.__lastGeralAgg = a;
 }
+
+function renderBmPivot(rows, mesesUnicos){
+  var forns = ALL_FORNS.filter(function(f){ return rows.some(function(r){ return r.fornecedor===f; }); });
+  var showTotal = forns.length>1;
+  var head1 = '<th rowspan="2" class="mescol">Mês/Ano</th>' +
+    forns.map(function(f){ return '<th colspan="2" class="grp g-'+FORN_SLUG[f]+'">'+esc(f)+'</th>'; }).join('') +
+    (showTotal ? '<th rowspan="2" class="grp g-total">Total Geral (R$)</th>' : '');
+  var head2 = forns.map(function(){ return '<th class="sub">BM</th><th class="sub">Valor (R$)</th>'; }).join('');
+
+  var totPerForn = {}; forns.forEach(function(f){ totPerForn[f]=0; });
+  var grandTotal = 0;
+
+  var body = mesesUnicos.map(function(m){
+    var totMes = 0;
+    var cells = forns.map(function(f){
+      var matches = rows.filter(function(r){ return r.mesano===m && r.fornecedor===f; });
+      var val = matches.reduce(function(a,r){ return a+r.valor; },0);
+      var bmLabel = matches.map(function(r){ return r.item; }).join(', ');
+      totMes += val; totPerForn[f] += val;
+      return '<td>'+(bmLabel?esc(bmLabel):'&mdash;')+'</td><td class="num">'+(val?fmtBRL(val):'&mdash;')+'</td>';
+    }).join('');
+    grandTotal += totMes;
+    return '<tr><td>'+esc(m)+'</td>'+cells+(showTotal?'<td class="num">'+fmtBRL(totMes)+'</td>':'')+'</tr>';
+  }).join('');
+
+  var footCells = forns.map(function(f){ return '<td colspan="2" class="num">'+fmtBRL(totPerForn[f])+'</td>'; }).join('');
+  var foot = '<tr class="total-row"><td>Total_Geral</td>'+footCells+(showTotal?'<td class="num">'+fmtBRL(grandTotal)+'</td>':'')+'</tr>';
+
+  var tbl = document.getElementById('tbl-bm');
+  tbl.innerHTML = '<thead><tr>'+head1+'</tr><tr>'+head2+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot>';
+}
+
+document.getElementById('btn-print-geral').addEventListener('click', async function(){
+  var a = window.__lastGeralAgg;
+  if (!a) return;
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var barImg, donutImg;
+  try {
+    barImg = await Plotly.toImage('chart-mes', { format:'png', width:820, height:320, scale:2 });
+    donutImg = await Plotly.toImage('chart-donut', { format:'png', width:360, height:320, scale:2 });
+  } catch(e){ console.error(e); }
+  var kpiHtml = '<div class="print-kpi"><div class="l">Valor total medido</div><div class="v">'+fmtBRLM(a.totalValor)+'</div></div>' +
+    a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('') +
+    '<div class="print-kpi"><div class="l">Período</div><div class="v" style="font-size:13px;">'+(a.mesesUnicos[0]||'-')+' a '+(a.mesesUnicos[a.mesesUnicos.length-1]||'-')+'</div></div>';
+  var chartsHtml = '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;">' +
+    (barImg ? '<img src="'+barImg+'" style="flex:1.6;max-width:62%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
+    (donutImg ? '<img src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
+    '</div>';
+  var html = '<div class="print-head">'+
+    '<div class="co">Techint Engenharia e Constru&ccedil;&atilde;o &middot; Painel de Confronto</div>'+
+    '<h1>Controle de Subcontratadas &mdash; Boletins de Medi&ccedil;&atilde;o</h1>'+
+    '<div class="meta">Cess&atilde;o USM &middot; Lau-Rent, Locar e Univale &middot; Gerado em '+hoje+'</div>'+
+    '</div>'+
+    '<div class="print-kpis">'+kpiHtml+'</div>'+
+    '<div class="print-content">'+chartsHtml+'</div>'+
+    '<div class="print-content">'+document.getElementById('tbl-bm').outerHTML+'</div>'+
+    '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx. Valores em Reais (R$).</div>';
+  document.getElementById('print-content').innerHTML = html;
+  window.print();
+});
 
 function initFromData(){
   var hasData = state.rows && state.rows.length > 0;
