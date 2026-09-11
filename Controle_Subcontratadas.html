@@ -206,7 +206,7 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
-    <h2>Boletins de Medi&ccedil;&atilde;o (BM'S) por m&ecirc;s e subcontratada</h2>
+    <h2>BM'S x FR'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</h2>
     <div class="table-wrap"><table class="rep pivot" id="tbl-bm"></table></div>
   </div>
 
@@ -347,7 +347,11 @@ function applyFiltersAndRender(){
   if (fForn) rows = rows.filter(function(r){ return r.fornecedor===fForn; });
   if (fMesDe) { var k=mesAnoSortKey(fMesDe); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k; }); }
   if (fMesAte) { var k2=mesAnoSortKey(fMesAte); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k2; }); }
-  renderAll(computeAgg(rows), rows);
+  var resumoRows = state.resumo;
+  if (fForn) resumoRows = resumoRows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fMesDe) { var k3=mesAnoSortKey(fMesDe); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k3; }); }
+  if (fMesAte) { var k4=mesAnoSortKey(fMesAte); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k4; }); }
+  renderAll(computeAgg(rows), rows, resumoRows);
 }
 
 var CHART_GREEN='#92D050', CHART_INFO_BLUE='#2E7BC4', CHART_NAVY='#002B5C', CHART_WARN='#eda100';
@@ -358,7 +362,7 @@ function kpiCard(label, value, sub, cls){
   return '<div class="kpi-card '+(cls||'')+'"><div class="label">'+esc(label)+'</div><div class="value">'+value+'</div>'+(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
 }
 
-function renderAll(a, rows){
+function renderAll(a, rows, resumoRows){
   document.getElementById('kpi-grid').innerHTML =
     kpiCard('Valor total medido', fmtBRLM(a.totalValor), fmtInt(a.totalQtd)+' BM\'S', 'accent') +
     a.porFornecedor.map(function(f){ return kpiCard(f.chave, fmtBRLM(f.valor), fmtPct(a.totalValor?f.valor/a.totalValor:0), 'ok'); }).join('') +
@@ -376,36 +380,44 @@ function renderAll(a, rows){
     hovertemplate:'%{label}: R$ %{value:,.2f}<extra></extra>'
   }], { margin:{t:10,b:10,l:10,r:10}, showlegend:false, font:{family:'Segoe UI'} }, PLOTLY_CONFIG);
 
-  renderBmPivot(rows, a.mesesUnicos);
+  renderBmReconciliation(resumoRows, a.mesesUnicos);
   window.__lastGeralAgg = a;
 }
 
-function renderBmPivot(rows, mesesUnicos){
+function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
+
+function renderBmReconciliation(rows, mesesUnicos){
   var forns = ALL_FORNS.filter(function(f){ return rows.some(function(r){ return r.fornecedor===f; }); });
   var showTotal = forns.length>1;
   var head1 = '<th rowspan="2" class="mescol">Mês/Ano</th>' +
-    forns.map(function(f){ return '<th colspan="2" class="grp g-'+FORN_SLUG[f]+'">'+esc(f)+'</th>'; }).join('') +
-    (showTotal ? '<th rowspan="2" class="grp g-total">Total Geral (R$)</th>' : '');
-  var head2 = forns.map(function(){ return '<th class="sub">BM</th><th class="sub">Valor (R$)</th>'; }).join('');
+    forns.map(function(f){ return '<th colspan="3" class="grp g-'+FORN_SLUG[f]+'">'+esc(f)+'</th>'; }).join('') +
+    (showTotal ? '<th colspan="3" class="grp g-total">Total Geral</th>' : '');
+  var sub3 = '<th class="sub">BM\'S</th><th class="sub">FR\'S Emitidas</th><th class="sub">Saldo Pendente</th>';
+  var head2 = forns.map(function(){ return sub3; }).join('') + (showTotal ? sub3 : '');
 
-  var totPerForn = {}; forns.forEach(function(f){ totPerForn[f]=0; });
-  var grandTotal = 0;
+  var totPerForn = {}; forns.forEach(function(f){ totPerForn[f] = {medido:0, faturado:0}; });
+  var grand = {medido:0, faturado:0};
 
   var body = mesesUnicos.map(function(m){
-    var totMes = 0;
+    var totMed=0, totFat=0;
     var cells = forns.map(function(f){
-      var matches = rows.filter(function(r){ return r.mesano===m && r.fornecedor===f; });
-      var val = matches.reduce(function(a,r){ return a+r.valor; },0);
-      var bmLabel = matches.map(function(r){ return r.item; }).join(', ');
-      totMes += val; totPerForn[f] += val;
-      return '<td>'+(bmLabel?esc(bmLabel):'&mdash;')+'</td><td class="num">'+(val?fmtBRL(val):'&mdash;')+'</td>';
+      var r = findResumo(rows, m, f);
+      var med = r?r.medido:0, fat = r?r.faturado:0, pend = med-fat;
+      totMed+=med; totFat+=fat;
+      totPerForn[f].medido += med; totPerForn[f].faturado += fat;
+      return '<td class="num">'+(med?fmtBRL(med):'&mdash;')+'</td><td class="num">'+(fat?fmtBRL(fat):'&mdash;')+'</td><td class="num '+pendCls(pend)+'">'+fmtBRL(pend)+'</td>';
     }).join('');
-    grandTotal += totMes;
-    return '<tr><td>'+esc(m)+'</td>'+cells+(showTotal?'<td class="num">'+fmtBRL(totMes)+'</td>':'')+'</tr>';
+    grand.medido+=totMed; grand.faturado+=totFat;
+    if (showTotal){ var totPend = totMed-totFat; cells += '<td class="num">'+fmtBRL(totMed)+'</td><td class="num">'+fmtBRL(totFat)+'</td><td class="num '+pendCls(totPend)+'">'+fmtBRL(totPend)+'</td>'; }
+    return '<tr><td>'+esc(m)+'</td>'+cells+'</tr>';
   }).join('');
 
-  var footCells = forns.map(function(f){ return '<td colspan="2" class="num">'+fmtBRL(totPerForn[f])+'</td>'; }).join('');
-  var foot = '<tr class="total-row"><td>Total_Geral</td>'+footCells+(showTotal?'<td class="num">'+fmtBRL(grandTotal)+'</td>':'')+'</tr>';
+  var footCells = forns.map(function(f){
+    var d = totPerForn[f], pend = d.medido-d.faturado;
+    return '<td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num '+pendCls(pend)+'">'+fmtBRL(pend)+'</td>';
+  }).join('');
+  if (showTotal){ var gPend = grand.medido-grand.faturado; footCells += '<td class="num">'+fmtBRL(grand.medido)+'</td><td class="num">'+fmtBRL(grand.faturado)+'</td><td class="num '+pendCls(gPend)+'">'+fmtBRL(gPend)+'</td>'; }
+  var foot = '<tr class="total-row"><td>Total_Geral</td>'+footCells+'</tr>';
 
   var tbl = document.getElementById('tbl-bm');
   tbl.innerHTML = '<thead><tr>'+head1+'</tr><tr>'+head2+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot>';
