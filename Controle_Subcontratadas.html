@@ -169,6 +169,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 
   <div class="toolbar">
     <button class="btn btn-primary" id="btn-refresh">&#128193; Selecionar Arquivo</button>
+    <button class="btn" id="btn-quick-update" title="Rel&ecirc; o mesmo arquivo do disco, atualizando Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias">&#128260; Atualizar</button>
     <button class="btn btn-dl" id="btn-download">&#128190; Baixar arquivo atualizado</button>
     <span class="src-info">Fonte esperada: <code>Controle_Cessionarias_Total_Rev04.xlsx</code> &middot; abas "1_LAU-RENT", "2_LOCAR", "3_UNIVALE" (BM'S/Cobrado, valor medido)</span>
   </div>
@@ -291,6 +292,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
       <li>Relat&oacute;rio "FR'S Emitidas &mdash; detalhamento por m&ecirc;s": vem da aba "FR'S_Emitidas" da planilha de origem, com uma linha por FR (nota individual) emitida &mdash; n&uacute;mero da FR, data, fornecedor, BM de refer&ecirc;ncia, valor e NF. Os meses aparecem fechados por padr&atilde;o; clique para expandir e ver as FR'S daquele m&ecirc;s. Pode ser exportado em CSV.</li>
       <li>A planilha de origem tem outras abas (composi&ccedil;&atilde;o por item) que n&atilde;o entraram nesta vers&atilde;o &mdash; pe&ccedil;a para incluir se for &uacute;til.</li>
       <li>O bot&atilde;o <b>Selecionar Arquivo</b> l&ecirc; o .xlsx inteiro no navegador (nada sai da m&aacute;quina) e atualiza a tela na hora. Depois, <b>Baixar arquivo atualizado</b> salva um novo HTML para substituir este arquivo no projeto.</li>
+      <li>O bot&atilde;o <b>&#128260; Atualizar</b> rel&ecirc; o mesmo arquivo j&aacute; selecionado direto do disco (sem abrir o seletor de novo), atualizando as duas abas &mdash; Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias &mdash; de uma vez. Funciona em navegadores baseados em Chromium (Edge, Chrome); antes de us&aacute;-lo pela primeira vez, clique em <b>Selecionar Arquivo</b> uma vez para o navegador saber qual arquivo reler.</li>
     </ul>
   </details>
 
@@ -976,18 +978,18 @@ function downloadUpdatedReport(){
 }
 
 var btn = document.getElementById('btn-refresh');
+var quickBtn = document.getElementById('btn-quick-update');
 var dlBtn = document.getElementById('btn-download');
 var fileInput = document.createElement('input');
 fileInput.type = 'file'; fileInput.accept = '.xlsx'; fileInput.style.display = 'none';
 document.body.appendChild(fileInput);
-btn.addEventListener('click', function(){ fileInput.click(); });
 dlBtn.addEventListener('click', downloadUpdatedReport);
 
-fileInput.addEventListener('change', async function(){
-  var file = fileInput.files[0];
-  fileInput.value = '';
-  if (!file) return;
-  btn.disabled = true; showProgress();
+var supportsFSAccess = 'showOpenFilePicker' in window;
+state.fileHandle = null;
+
+async function loadAndRender(file, msgOk){
+  btn.disabled = true; quickBtn.disabled = true; showProgress();
   log('Lendo '+file.name+' ('+(file.size/1e6).toFixed(1)+' MB)...');
   setProgress(10);
   try{
@@ -1001,13 +1003,47 @@ fileInput.addEventListener('change', async function(){
     initFromData();
     dlBtn.style.display = 'inline-flex';
     setProgress(100);
-    log('Dados atualizados com sucesso. Clique em "Baixar arquivo atualizado" para salvar no projeto.', 'ok');
+    log(msgOk || 'Dados atualizados com sucesso (Visão Geral e FR\'S Emitidas x Pendências). Clique em "Baixar arquivo atualizado" para salvar no projeto.', 'ok');
   } catch(err){
     console.error(err);
     log('ERRO: ' + err.message, 'err');
   } finally {
-    btn.disabled = false;
+    btn.disabled = false; quickBtn.disabled = false;
   }
+}
+
+btn.addEventListener('click', async function(){
+  if (supportsFSAccess){
+    try {
+      var handles = await window.showOpenFilePicker({ types:[{ description:'Planilha Excel', accept:{ 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'] } }] });
+      state.fileHandle = handles[0];
+      var file = await state.fileHandle.getFile();
+      await loadAndRender(file);
+    } catch(e){ if (e.name!=='AbortError'){ console.error(e); log('ERRO ao selecionar arquivo: '+e.message, 'err'); } }
+  } else {
+    fileInput.click();
+  }
+});
+
+quickBtn.addEventListener('click', async function(){
+  if (!state.fileHandle){
+    btn.click();
+    return;
+  }
+  try {
+    var perm = await state.fileHandle.queryPermission({ mode:'read' });
+    if (perm !== 'granted') perm = await state.fileHandle.requestPermission({ mode:'read' });
+    if (perm !== 'granted'){ log('Permissão de leitura do arquivo negada.', 'err'); return; }
+    var file = await state.fileHandle.getFile();
+    await loadAndRender(file, 'Atualizado a partir do arquivo no disco (Visão Geral e FR\'S Emitidas x Pendências).');
+  } catch(e){ console.error(e); log('ERRO ao reler o arquivo: '+e.message, 'err'); }
+});
+
+fileInput.addEventListener('change', async function(){
+  var file = fileInput.files[0];
+  fileInput.value = '';
+  if (!file) return;
+  await loadAndRender(file);
 });
 
 initFromData();
