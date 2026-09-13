@@ -23,7 +23,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .confronto-banner-switch{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border:1px solid rgba(255,255,255,.5);border-radius:999px;color:#fff;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;}
 .confronto-banner-switch:hover{background:rgba(255,255,255,.12);border-color:#fff;}
 
-.app{max-width:1280px;margin:0 auto;padding:22px 26px 60px;}
+.app{max-width:1600px;margin:0 auto;padding:22px 26px 60px;}
 .header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
 .header h1{margin:0;font-size:19px;color:var(--navy);}
 .header .sub{font-size:12px;color:var(--text-muted);margin-top:3px;}
@@ -44,6 +44,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .filter-clear{align-self:flex-end;}
 
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px;}
+#kpi-grid{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;box-shadow:0 6px 10px -8px rgba(0,43,92,.25);}
 .kpi-card{background:linear-gradient(135deg,var(--surface),var(--navy-100));border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);border-left:4px solid var(--info-blue);}
 .kpi-card.ok{border-left-color:var(--green-dark);}
 .kpi-card.accent{border-left-color:var(--navy);}
@@ -57,7 +58,10 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;}
 .panel h2{margin:0 0 10px;font-size:14px;color:var(--navy);}
 .chart-box{width:100%;height:300px;}
-#chart-pend-cum{height:360px;}
+#chart-pend-combo{height:340px;}
+.collapsible-table{margin-top:0;margin-bottom:16px;}
+.collapsible-table summary{margin-bottom:12px;}
+.collapsible-table[open] summary{margin-bottom:12px;}
 
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
 table.rep{border-collapse:collapse;width:100%;font-size:12.5px;}
@@ -106,8 +110,10 @@ table.pivot th.grp.g-univale{background:#fbf0dc;color:var(--warn);}
 table.pivot th.grp.g-total{background:var(--navy-100);color:var(--navy);}
 table.pivot th.sub{font-size:10.5px;font-weight:600;text-align:right;background:#f7f9fb;border-left:2px solid var(--surface);}
 table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
-table.pivot th.bmcol{background:var(--navy-100);color:var(--navy);text-align:center;}
-table.pivot td.bmcol{text-align:center;font-weight:700;color:var(--navy);background:#f7f9fb;}
+table.pivot th.bmcol{background:var(--navy-100);color:var(--navy);text-align:center;width:58px;min-width:58px;}
+table.pivot td.bmcol{text-align:center;font-weight:700;color:var(--navy);background:#f7f9fb;width:58px;min-width:58px;white-space:nowrap;}
+table.pivot th.sub, table.pivot td{padding:6px 8px;}
+table.pivot td.num, table.pivot th.sub{font-size:12px;}
 #chart-bm-combo{height:320px;margin-top:16px;}
 
 #print-content{display:none;}
@@ -252,21 +258,18 @@ table.pivot td.bmcol{text-align:center;font-weight:700;color:var(--navy);backgro
       </table></div>
     </div>
 
-    <div class="grid2">
-      <div class="panel">
-        <h2>Diferen&ccedil;a mensal por subcontrato (R$)</h2>
-        <div class="chart-box" id="chart-pend-bar"></div>
-      </div>
-      <div class="panel">
-        <h2>Curva acumulada &mdash; Medido x Faturado (R$)</h2>
-        <div class="chart-box" id="chart-pend-cum"></div>
-      </div>
+    <div class="panel" style="margin-bottom:16px;">
+      <h2>BM'S x FR'S Emitidas por m&ecirc;s + Saldo Pendente Acumulado</h2>
+      <div class="chart-box" id="chart-pend-combo"></div>
     </div>
 
-    <div class="panel">
-      <h2>Reconcilia&ccedil;&atilde;o mensal por subcontrato</h2>
+    <details class="notes collapsible-table">
+      <summary>Reconcilia&ccedil;&atilde;o mensal por subcontrato (clique para expandir)</summary>
       <div class="table-wrap"><table class="rep" id="tbl-pivot"></table></div>
-    </div>
+      <div class="toolbar" style="margin-top:12px;margin-bottom:0;">
+        <button class="btn" id="btn-export-pivot">&#11015; Exportar CSV</button>
+      </div>
+    </details>
 
   </div>
 
@@ -433,18 +436,18 @@ function renderBmReconciliation(rows, mesesUnicos){
   var tbl = document.getElementById('tbl-bm');
   tbl.innerHTML = '<thead><tr>'+head1+'</tr><tr>'+head2+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot>';
 
-  renderBmComboChart(mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
+  renderComboChart('chart-bm-combo', mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
 }
 
-function renderBmComboChart(meses, medidoArr, faturadoArr, pendAcumArr){
-  var el = document.getElementById('chart-bm-combo');
+function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
+  var el = document.getElementById(elId);
   if (!el) return;
   var traces = [
     { type:'bar', name:'BM\'S (Medido)', x:meses, y:medidoArr, marker:{color:CHART_INFO_BLUE}, hovertemplate:'%{x}<br>BM\'S: R$ %{y:,.2f}<extra></extra>' },
     { type:'bar', name:'FR\'S Emitidas', x:meses, y:faturadoArr, marker:{color:CHART_GREEN}, hovertemplate:'%{x}<br>FR\'S: R$ %{y:,.2f}<extra></extra>' },
     { type:'scatter', mode:'lines+markers', name:'Saldo Pendente Acumulado', x:meses, y:pendAcumArr, yaxis:'y2', line:{color:CHART_WARN,width:3}, marker:{size:6,color:CHART_WARN}, hovertemplate:'%{x}<br>Acumulado: R$ %{y:,.2f}<extra></extra>' }
   ];
-  Plotly.react('chart-bm-combo', traces, {
+  Plotly.react(elId, traces, {
     barmode:'group',
     margin:{t:30,b:60,l:60,r:60},
     xaxis:{tickangle:-45},
@@ -628,31 +631,17 @@ function renderPendPivot(rows, forns, mesesUnicos, a){
 }
 
 function renderPendCharts(rows, forns, mesesUnicos){
-  var barTraces = forns.map(function(f){
-    var y = mesesUnicos.map(function(m){ var r=findResumo(rows,m,f); return r?r.diferenca:0; });
-    return { type:'bar', name:f, x:mesesUnicos, y:y, marker:{color:FORN_COLOR[f]||CHART_NAVY}, hovertemplate:f+' — %{x}: R$ %{y:,.2f}<extra></extra>' };
-  });
-  Plotly.react('chart-pend-bar', barTraces, { barmode: forns.length>1?'group':'relative', margin:{t:10,b:60,l:60,r:10}, xaxis:{tickangle:-45}, yaxis:{title:'R$', zeroline:true, zerolinecolor:'#94a3b8'}, legend:{orientation:'h', y:1.15}, font:{family:'Segoe UI',size:10} }, PLOTLY_CONFIG);
-
-  var cumTraces = [];
-  forns.forEach(function(f){
-    var cumMed=0, cumFat=0, yMed=[], yFat=[];
-    mesesUnicos.forEach(function(m){
-      var r = findResumo(rows,m,f);
-      cumMed += r?r.medido:0; cumFat += r?r.faturado:0;
-      yMed.push(cumMed); yFat.push(cumFat);
+  var monthMedido = [], monthFaturado = [], monthPendAcum = [], acumPend = 0;
+  mesesUnicos.forEach(function(m){
+    var totMed=0, totFat=0;
+    forns.forEach(function(f){
+      var r = findResumo(rows, m, f);
+      if (r){ totMed += r.medido; totFat += r.faturado; }
     });
-    cumTraces.push({ type:'scatter', mode:'lines+markers', name:f+' · Medido (acum.)', x:mesesUnicos, y:yMed, line:{color:FORN_COLOR[f]||CHART_NAVY, dash:'dot', width:2}, marker:{size:4} });
-    cumTraces.push({ type:'scatter', mode:'lines+markers', name:f+' · Faturado (acum.)', x:mesesUnicos, y:yFat, line:{color:FORN_COLOR[f]||CHART_NAVY, width:2.5}, marker:{size:4} });
+    monthMedido.push(totMed); monthFaturado.push(totFat);
+    acumPend += (totMed-totFat); monthPendAcum.push(acumPend);
   });
-  var cumLegendRows = forns.length>1 ? 2 : 1;
-  Plotly.react('chart-pend-cum', cumTraces, {
-    height: document.getElementById('chart-pend-cum').clientHeight,
-    margin:{t: cumLegendRows>1?70:40, b:60, l:60, r:10},
-    xaxis:{tickangle:-45}, yaxis:{title:'R$'},
-    legend:{orientation:'h', x:0, y: cumLegendRows>1?1.32:1.18, font:{size:9}},
-    font:{family:'Segoe UI',size:10}
-  }, PLOTLY_CONFIG);
+  renderComboChart('chart-pend-combo', mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
 }
 
 function applyPendFiltersAndRender(){
@@ -685,6 +674,30 @@ document.getElementById('p-btn-clear').addEventListener('click', function(){
   document.getElementById('p-mes-de').value = '';
   document.getElementById('p-mes-ate').value = '';
   applyPendFiltersAndRender();
+});
+
+function tableToCsv(table){
+  var lines = [];
+  table.querySelectorAll('tr').forEach(function(tr){
+    var vals = Array.prototype.map.call(tr.querySelectorAll('th,td'), function(c){
+      var txt = c.textContent.replace(/\s+/g,' ').trim();
+      return '"'+txt.replace(/"/g,'""')+'"';
+    });
+    lines.push(vals.join(';'));
+  });
+  return lines.join('\r\n');
+}
+function downloadCsv(csvText, filename){
+  var blob = new Blob(['﻿'+csvText], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+}
+document.getElementById('btn-export-pivot').addEventListener('click', function(){
+  var csv = tableToCsv(document.getElementById('tbl-pivot'));
+  downloadCsv(csv, 'reconciliacao_mensal_subcontratadas.csv');
 });
 
 document.getElementById('btn-print').addEventListener('click', function(){
