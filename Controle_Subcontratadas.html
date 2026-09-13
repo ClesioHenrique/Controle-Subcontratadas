@@ -67,6 +67,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .frs-group summary::before{content:'\25B8';display:inline-block;transition:transform .15s;color:var(--text-muted);}
 .frs-group[open] summary::before{transform:rotate(90deg);}
 .frs-group .fg-mes{min-width:70px;}
+.frs-group .fg-bm{font-weight:600;color:var(--text-muted);font-size:12px;}
 .frs-group .fg-count{font-weight:600;color:var(--text-muted);font-size:12px;}
 .frs-group .fg-total{margin-left:auto;font-size:13.5px;}
 .frs-group .table-wrap{border:none;border-radius:0;border-top:1px solid var(--border);}
@@ -630,13 +631,15 @@ function renderFrsReport(rows){
     var groupRows = rows.filter(function(r){ return r.mesano===m; })
       .sort(function(x,y){ return dataSortKey(x.data)-dataSortKey(y.data); });
     var total = groupRows.reduce(function(a,r){ return a+r.valor; },0);
+    var bms = groupRows.reduce(function(acc,r){ if (r.bm && acc.indexOf(r.bm)===-1) acc.push(r.bm); return acc; }, []).sort();
+    var bmLabel = bms.join(', ');
     var body = groupRows.map(function(r){
       return '<tr><td>'+esc(r.fr)+'</td><td>'+esc(r.data)+'</td>'+
         '<td><span class="badge '+(FORN_BADGE[r.fornecedor]||'')+'">'+esc(r.fornecedor)+'</span></td>'+
         '<td>'+esc(r.bm)+'</td><td class="num">'+fmtBRL(r.valor)+'</td><td>'+esc(r.nf)+'</td></tr>';
     }).join('');
     return '<details class="frs-group">'+
-      '<summary><span class="fg-mes">'+esc(m)+'</span><span class="fg-count">'+groupRows.length+' FR\'S</span><span class="fg-total">'+fmtBRL(total)+'</span></summary>'+
+      '<summary><span class="fg-mes">'+esc(m)+(bmLabel?' <span class="fg-bm">('+esc(bmLabel)+')</span>':'')+'</span><span class="fg-count">'+groupRows.length+' FR\'S</span><span class="fg-total">'+fmtBRL(total)+'</span></summary>'+
       '<div class="table-wrap"><table class="rep"><thead><tr><th>FR</th><th>Data</th><th>Fornecedor</th><th>BM</th><th class="num">Valor (R$)</th><th>NF</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
       '</details>';
   }).join('');
@@ -930,6 +933,17 @@ function extractResumoRows(rows){
 }
 
 var FRS_FORN_MAP = { 'laurent':'Lau rent', 'locar':'Locar', 'univale':'Univale' };
+function dataBRFromCell(v){
+  if (typeof v === 'number'){
+    var d = new Date(Math.round((v-25569)*86400000));
+    var dd = String(d.getUTCDate()).padStart(2,'0');
+    var mm = String(d.getUTCMonth()+1).padStart(2,'0');
+    var yy = String(d.getUTCFullYear()).slice(2);
+    return dd+'/'+mm+'/'+yy;
+  }
+  if (typeof v === 'string') return v.trim();
+  return '';
+}
 function extractFrsRows(rows){
   var out = [];
   for (var r=4; r<rows.length; r++){
@@ -941,7 +955,7 @@ function extractFrsRows(rows){
     var mesano = mesAnoFromCell(row[18]);
     if (!mesano) continue;
     var valor = (typeof row[8]==='number') ? row[8] : 0;
-    out.push({ fr:fr, data:cellStr(row,3), fornecedor:fornecedor, bm:cellStr(row,19), mesano:mesano, valor:Math.round(valor*100)/100, nf:cellStr(row,14) });
+    out.push({ fr:fr, data:dataBRFromCell(row[3]), fornecedor:fornecedor, bm:cellStr(row,19), mesano:mesano, valor:Math.round(valor*100)/100, nf:cellStr(row,14) });
   }
   return out;
 }
