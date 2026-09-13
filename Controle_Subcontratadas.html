@@ -61,6 +61,12 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 #chart-pend-combo{height:460px;}
 #chart-bm-combo{height:460px;margin-top:16px;}
 
+.share-wrap{position:relative;display:inline-block;}
+.share-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:6px;min-width:160px;z-index:20;flex-direction:column;gap:2px;}
+.share-menu.show{display:flex;}
+.share-menu a{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;color:var(--text);text-decoration:none;font-size:13px;font-weight:600;}
+.share-menu a:hover{background:var(--navy-100);}
+
 .frs-group{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden;}
 .frs-group summary{list-style:none;cursor:pointer;padding:10px 14px;display:flex;align-items:center;gap:14px;font-weight:700;color:var(--navy);}
 .frs-group summary::-webkit-details-marker{display:none;}
@@ -172,6 +178,14 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     <button class="btn btn-primary" id="btn-refresh">&#128193; Selecionar Arquivo</button>
     <button class="btn" id="btn-quick-update" title="Rel&ecirc; o mesmo arquivo do disco, atualizando Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias">&#128260; Atualizar</button>
     <button class="btn btn-dl" id="btn-download">&#128190; Baixar arquivo atualizado</button>
+    <div class="share-wrap">
+      <button class="btn" id="btn-share">&#128228; Compartilhar</button>
+      <div class="share-menu" id="share-menu">
+        <a id="share-whatsapp" href="#" target="_blank" rel="noopener">&#128241; WhatsApp</a>
+        <a id="share-email" href="#">&#9993; E-mail</a>
+        <a id="share-sms" href="#">&#128172; SMS</a>
+      </div>
+    </div>
     <span class="src-info">Fonte esperada: <code>Controle_Cessionarias_Total_Rev04.xlsx</code> &middot; abas "1_LAU-RENT", "2_LOCAR", "3_UNIVALE" (BM'S/Cobrado, valor medido)</span>
   </div>
 
@@ -1005,6 +1019,26 @@ var fileInput = document.createElement('input');
 fileInput.type = 'file'; fileInput.accept = '.xlsx'; fileInput.style.display = 'none';
 document.body.appendChild(fileInput);
 dlBtn.addEventListener('click', downloadUpdatedReport);
+
+/* ---- compartilhar ---- */
+var SHARE_URL = 'https://clesiohenrique.github.io/Controle-Subcontratadas/Controle_Subcontratadas.html';
+var SHARE_TEXT = 'Faturamento - Controle de Subcontratadas';
+var shareBtn = document.getElementById('btn-share');
+var shareMenu = document.getElementById('share-menu');
+document.getElementById('share-whatsapp').href = 'https://wa.me/?text=' + encodeURIComponent(SHARE_TEXT + ': ' + SHARE_URL);
+document.getElementById('share-email').href = 'mailto:?subject=' + encodeURIComponent(SHARE_TEXT) + '&body=' + encodeURIComponent('Segue o link do painel: ' + SHARE_URL);
+document.getElementById('share-sms').href = 'sms:?body=' + encodeURIComponent(SHARE_TEXT + ': ' + SHARE_URL);
+shareBtn.addEventListener('click', async function(e){
+  e.stopPropagation();
+  if (navigator.share){
+    try { await navigator.share({ title: SHARE_TEXT, text: SHARE_TEXT, url: SHARE_URL }); return; }
+    catch(err){ if (err.name==='AbortError') return; }
+  }
+  shareMenu.classList.toggle('show');
+});
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.share-wrap')) shareMenu.classList.remove('show');
+});
 
 var supportsFSAccess = 'showOpenFilePicker' in window;
 state.fileHandle = null;
