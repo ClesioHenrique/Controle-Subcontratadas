@@ -995,6 +995,38 @@ dlBtn.addEventListener('click', downloadUpdatedReport);
 var supportsFSAccess = 'showOpenFilePicker' in window;
 state.fileHandle = null;
 
+/* ---- guarda o handle do arquivo no IndexedDB, para reabrir a pagina ja "lembrando" qual arquivo reler ---- */
+var HANDLE_DB = 'subcontratadas_handles', HANDLE_STORE = 'handles';
+function openHandleDB(){
+  return new Promise(function(resolve, reject){
+    var req = indexedDB.open(HANDLE_DB, 1);
+    req.onupgradeneeded = function(){ req.result.createObjectStore(HANDLE_STORE); };
+    req.onsuccess = function(){ resolve(req.result); };
+    req.onerror = function(){ reject(req.error); };
+  });
+}
+async function saveFileHandle(handle){
+  try {
+    var db = await openHandleDB();
+    await new Promise(function(resolve, reject){
+      var tx = db.transaction(HANDLE_STORE, 'readwrite');
+      tx.objectStore(HANDLE_STORE).put(handle, 'lastFile');
+      tx.oncomplete = resolve; tx.onerror = function(){ reject(tx.error); };
+    });
+  } catch(e){ console.error('Não foi possível salvar a referência do arquivo:', e); }
+}
+async function loadFileHandle(){
+  try {
+    var db = await openHandleDB();
+    return await new Promise(function(resolve, reject){
+      var tx = db.transaction(HANDLE_STORE, 'readonly');
+      var req = tx.objectStore(HANDLE_STORE).get('lastFile');
+      req.onsuccess = function(){ resolve(req.result || null); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  } catch(e){ return null; }
+}
+
 async function loadAndRender(file, msgOk){
   btn.disabled = true; quickBtn.disabled = true; showProgress();
   log('Lendo '+file.name+' ('+(file.size/1e6).toFixed(1)+' MB)...');
@@ -1008,9 +1040,12 @@ async function loadAndRender(file, msgOk){
     state.sourceName = file.name;
     state.updatedAt = new Date().toISOString();
     initFromData();
+    var activePanel = document.querySelector('.tab-panel.active');
+    if (activePanel) resizeChartsIn(activePanel);
     dlBtn.style.display = 'inline-flex';
     setProgress(100);
     log(msgOk || 'Dados atualizados com sucesso (Visão Geral e FR\'S Emitidas x Pendências). Clique em "Baixar arquivo atualizado" para salvar no projeto.', 'ok');
+    setTimeout(hideProgress, 4000);
   } catch(err){
     console.error(err);
     log('ERRO: ' + err.message, 'err');
@@ -1024,6 +1059,7 @@ btn.addEventListener('click', async function(){
     try {
       var handles = await window.showOpenFilePicker({ types:[{ description:'Planilha Excel', accept:{ 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx'] } }] });
       state.fileHandle = handles[0];
+      saveFileHandle(state.fileHandle);
       var file = await state.fileHandle.getFile();
       await loadAndRender(file);
     } catch(e){ if (e.name!=='AbortError'){ console.error(e); log('ERRO ao selecionar arquivo: '+e.message, 'err'); } }
@@ -1054,6 +1090,26 @@ fileInput.addEventListener('change', async function(){
 });
 
 initFromData();
+
+/* ---- tenta atualizar sozinho ao reabrir a pagina, se ja tivermos permissao lembrada ---- */
+async function attemptAutoLoad(){
+  if (!supportsFSAccess) return;
+  var handle = await loadFileHandle();
+  if (!handle) return;
+  try {
+    var perm = await handle.queryPermission({ mode:'read' });
+    state.fileHandle = handle;
+    if (perm === 'granted'){
+      var file = await handle.getFile();
+      await loadAndRender(file, 'Atualizado automaticamente a partir do último arquivo usado (Visão Geral e FR\'S Emitidas x Pendências).');
+    } else {
+      document.getElementById('progress-panel').classList.add('show');
+      log('Arquivo salvo encontrado — clique em "🔄 Atualizar" para carregar os dados mais recentes.', 'ok');
+      setTimeout(hideProgress, 6000);
+    }
+  } catch(e){ console.error(e); }
+}
+attemptAutoLoad();
 </script>
 </body>
 </html>
