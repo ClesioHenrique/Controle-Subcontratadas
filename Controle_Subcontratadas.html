@@ -239,6 +239,9 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
       <div class="filter-field"><label>M&ecirc;s/Ano at&eacute;</label>
         <select id="f-mes-ate"><option value="">--</option></select>
       </div>
+      <div class="filter-field"><label>Contrato</label>
+        <select id="f-contrato"><option value="">Todos os contratos</option></select>
+      </div>
       <button class="btn filter-clear" id="btn-clear">Limpar filtros</button>
     </div>
 
@@ -307,7 +310,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   <details class="notes">
     <summary>Notas metodol&oacute;gicas</summary>
     <ul>
-      <li>Aba "Vis&atilde;o Geral": cada linha representa um Boletim de Medi&ccedil;&atilde;o (BM) de um fornecedor em um m&ecirc;s espec&iacute;fico, com o valor <b>medido/cobrado</b> &mdash; extra&iacute;do das abas pr&oacute;prias de cada fornecedor ("1_LAU-RENT", "2_LOCAR", "3_UNIVALE"), coluna "COBRADO"/"BM'S".</li>
+      <li>Aba "Vis&atilde;o Geral": cada linha representa um Boletim de Medi&ccedil;&atilde;o (BM) de um fornecedor em um m&ecirc;s espec&iacute;fico, com o valor <b>medido/cobrado</b> &mdash; extra&iacute;do das abas pr&oacute;prias de cada fornecedor ("1_LAU-RENT", "2_LOCAR", "3_UNIVALE"), coluna "COBRADO"/"BM'S". O filtro <b>Contrato</b> (aba "FR'S_Emitidas") aqui funciona por aproxima&ccedil;&atilde;o: como "Resumo_GERAL"/as abas de BM'S n&atilde;o guardam o contrato de cada lan&ccedil;amento, selecionar um contrato mostra apenas os subcontratados que t&ecirc;m aquele contrato (ex.: escolher <code>4600185340 (MOA)</code> ou <code>4600185359 (MOA)</code> mostra s&oacute; a Univale, que &eacute; a &uacute;nica com contrato MOA) &mdash; n&atilde;o divide o medido/faturado da Univale entre os contratos MOA e PCI dela, pois isso n&atilde;o existe separado na planilha de origem.</li>
       <li>Aba "FR'S Emitidas x Pend&ecirc;ncias": vem da aba "Resumo_GERAL" (BM'S medidos x FR's emitidas x Diferen&ccedil;a, j&aacute; consolidada por m&ecirc;s e fornecedor na planilha de origem). <b>Diferen&ccedil;a = Faturado &minus; Medido</b> (mesma conven&ccedil;&atilde;o da planilha): valor negativo (vermelho) = BM medido ainda pendente de emiss&atilde;o de FR; valor positivo (verde) = faturado acima do medido no per&iacute;odo. Status <b>Pendente</b> quando a diferen&ccedil;a &eacute; menor que &minus;R$ 500.</li>
       <li>Relat&oacute;rio "FR'S Emitidas &mdash; detalhamento por m&ecirc;s": vem da aba "FR'S_Emitidas" da planilha de origem, com uma linha por FR (nota individual) emitida &mdash; n&uacute;mero da FR, data, fornecedor, <b>contrato</b>, BM de refer&ecirc;ncia, valor e NF. Os meses aparecem fechados por padr&atilde;o; clique para expandir e ver as FR'S daquele m&ecirc;s. Pode ser exportado em CSV.</li>
       <li><b>Contrato</b>: identificado pela coluna "CTR" (n&uacute;mero do contrato no SAP) cruzada com "Projeto" (PCI/MOA) da aba "FR'S_Emitidas". H&aacute; hoje 3 contratos vigentes: <code>4600184457 (PCI)</code> &mdash; compartilhado por Lau-Rent, Locar e Univale &mdash; e <code>4600185340 (MOA)</code> / <code>4600185359 (MOA)</code>, ambos apenas da Univale. O filtro de contrato afeta somente o relat&oacute;rio de FR'S Emitidas (a aba "FR'S_Emitidas" n&atilde;o tem o valor medido por contrato, s&oacute; o faturado); os demais indicadores (KPIs, resumo por subcontrato, gr&aacute;fico) continuam por fornecedor/m&ecirc;s, vindos da aba "Resumo_GERAL".</li>
@@ -360,6 +363,14 @@ function populateFilters(){
     var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
     meses.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   });
+  var selC = document.getElementById('f-contrato');
+  selC.innerHTML = '<option value="">Todos os contratos</option>';
+  distinctSorted(state.frs||[],'contrato').filter(function(v){ return v; }).forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; selC.appendChild(o); });
+}
+function fornecedoresDoContrato(contrato){
+  var set = {};
+  (state.frs||[]).forEach(function(r){ if (r.contrato===contrato) set[r.fornecedor]=true; });
+  return Object.keys(set);
 }
 function groupSum(rows, keyFn){
   var m = {};
@@ -387,12 +398,16 @@ function applyFiltersAndRender(){
   var fForn = document.getElementById('f-fornecedor').value;
   var fMesDe = document.getElementById('f-mes-de').value;
   var fMesAte = document.getElementById('f-mes-ate').value;
+  var fContrato = document.getElementById('f-contrato').value;
+  var fornsDoContrato = fContrato ? fornecedoresDoContrato(fContrato) : null;
   var rows = state.rows;
   if (fForn) rows = rows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fornsDoContrato) rows = rows.filter(function(r){ return fornsDoContrato.indexOf(r.fornecedor)!==-1; });
   if (fMesDe) { var k=mesAnoSortKey(fMesDe); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k; }); }
   if (fMesAte) { var k2=mesAnoSortKey(fMesAte); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k2; }); }
   var resumoRows = state.resumo;
   if (fForn) resumoRows = resumoRows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fornsDoContrato) resumoRows = resumoRows.filter(function(r){ return fornsDoContrato.indexOf(r.fornecedor)!==-1; });
   if (fMesDe) { var k3=mesAnoSortKey(fMesDe); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k3; }); }
   if (fMesAte) { var k4=mesAnoSortKey(fMesAte); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k4; }); }
   renderAll(computeAgg(rows), rows, resumoRows);
@@ -510,10 +525,16 @@ document.getElementById('btn-print-geral').addEventListener('click', async funct
     (donutImg ? '<img src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
     '</div>';
   var comboHtml = comboImg ? '<img src="'+comboImg+'" style="width:100%;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
+  var fForn = document.getElementById('f-fornecedor').value, fContrato = document.getElementById('f-contrato').value;
+  var fMesDe = document.getElementById('f-mes-de').value, fMesAte = document.getElementById('f-mes-ate').value;
+  var metaFiltros = 'Fornecedor: '+(fForn?esc(fForn):'Todos')+
+    ' &middot; Contrato: '+(fContrato?esc(fContrato):'Todos')+
+    ' &middot; Per&iacute;odo: '+(fMesDe||'in&iacute;cio')+' a '+(fMesAte||'fim');
   var html = '<div class="print-head">'+
     '<div class="co">Techint Engenharia e Constru&ccedil;&atilde;o &middot; Painel de Confronto</div>'+
     '<h1>Controle de Subcontratadas &mdash; Boletins de Medi&ccedil;&atilde;o</h1>'+
     '<div class="meta">Cess&atilde;o USM &middot; Lau-Rent, Locar e Univale &middot; Gerado em '+hoje+'</div>'+
+    '<div class="meta">'+metaFiltros+'</div>'+
     '</div>'+
     '<div class="print-kpis">'+kpiHtml+'</div>'+
     '<div class="print-content">'+chartsHtml+'</div>'+
@@ -541,13 +562,14 @@ function initFromData(){
   applyPendFiltersAndRender();
 }
 
-['f-fornecedor','f-mes-de','f-mes-ate'].forEach(function(id){
+['f-fornecedor','f-mes-de','f-mes-ate','f-contrato'].forEach(function(id){
   document.getElementById(id).addEventListener('change', applyFiltersAndRender);
 });
 document.getElementById('btn-clear').addEventListener('click', function(){
   document.getElementById('f-fornecedor').value = '';
   document.getElementById('f-mes-de').value = '';
   document.getElementById('f-mes-ate').value = '';
+  document.getElementById('f-contrato').value = '';
   applyFiltersAndRender();
 });
 
