@@ -81,6 +81,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;background:var(--surface);}
 table.rep{border-collapse:collapse;width:100%;font-size:12.5px;}
 table.rep th{background:var(--navy-100);color:var(--navy);text-align:left;font-weight:700;padding:8px 10px;position:sticky;top:0;}
+table.rep th.num{text-align:right;}
 table.rep td{padding:7px 10px;border-top:1px solid var(--border);}
 table.rep td.num{text-align:right;font-variant-numeric:tabular-nums;}
 table.rep tr:hover td{background:#f7f9fb;}
@@ -147,6 +148,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   .print-content img{max-width:100%;}
   .print-content table{width:100%;border-collapse:collapse;font-size:10px;}
   .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:5px 6px;border:1px solid var(--border);}
+  .print-content th.num{text-align:right;}
   .print-content td{padding:4px 6px;border:1px solid var(--border);}
   .print-content td.num{text-align:right;}
   .print-foot{margin-top:16px;font-size:10px;color:var(--text-muted);}
@@ -278,7 +280,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     <div class="panel" style="margin-bottom:16px;">
       <h2>Resumo final &mdash; valores pendentes por subcontrato</h2>
       <div class="table-wrap"><table class="rep" id="tbl-resumo-forn">
-        <thead><tr><th>Subcontrato</th><th class="num">BM'S (Medido) R$</th><th class="num">FR'S Emitidas (R$)</th><th class="num">Diferen&ccedil;a (R$)</th><th class="num">% Faturado</th><th>Situa&ccedil;&atilde;o</th></tr></thead>
+        <thead><tr><th>Subcontrato</th><th class="num">BM'S (Medido) R$</th><th class="num">FR'S Emitidas (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th><th>Situa&ccedil;&atilde;o</th></tr></thead>
         <tbody></tbody>
         <tfoot></tfoot>
       </table></div>
@@ -311,7 +313,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     <summary>Notas metodol&oacute;gicas</summary>
     <ul>
       <li>Aba "Vis&atilde;o Geral": cada linha representa um Boletim de Medi&ccedil;&atilde;o (BM) de um fornecedor em um m&ecirc;s espec&iacute;fico, com o valor <b>medido/cobrado</b> &mdash; extra&iacute;do das abas pr&oacute;prias de cada fornecedor ("1_LAU-RENT", "2_LOCAR", "3_UNIVALE"), coluna "COBRADO"/"BM'S". O filtro <b>Contrato</b> (aba "FR'S_Emitidas") aqui funciona por aproxima&ccedil;&atilde;o: como "Resumo_GERAL"/as abas de BM'S n&atilde;o guardam o contrato de cada lan&ccedil;amento, selecionar um contrato mostra apenas os subcontratados que t&ecirc;m aquele contrato (ex.: escolher <code>4600185340 (MOA)</code> ou <code>4600185359 (MOA)</code> mostra s&oacute; a Univale, que &eacute; a &uacute;nica com contrato MOA) &mdash; n&atilde;o divide o medido/faturado da Univale entre os contratos MOA e PCI dela, pois isso n&atilde;o existe separado na planilha de origem.</li>
-      <li>Aba "FR'S Emitidas x Pend&ecirc;ncias": vem da aba "Resumo_GERAL" (BM'S medidos x FR's emitidas x Diferen&ccedil;a, j&aacute; consolidada por m&ecirc;s e fornecedor na planilha de origem). <b>Diferen&ccedil;a = Faturado &minus; Medido</b> (mesma conven&ccedil;&atilde;o da planilha): valor negativo (vermelho) = BM medido ainda pendente de emiss&atilde;o de FR; valor positivo (verde) = faturado acima do medido no per&iacute;odo. Status <b>Pendente</b> quando a diferen&ccedil;a &eacute; menor que &minus;R$ 500.</li>
+      <li>Aba "FR'S Emitidas x Pend&ecirc;ncias": vem da aba "Resumo_GERAL" (BM'S medidos x FR's emitidas x Saldo Remanescente, j&aacute; consolidada por m&ecirc;s e fornecedor na planilha de origem). <b>Saldo Remanescente = Faturado &minus; Medido</b> (mesma conven&ccedil;&atilde;o da planilha): valor negativo (vermelho) = BM medido ainda pendente de emiss&atilde;o de FR; valor positivo (verde) = faturado acima do medido no per&iacute;odo. Status <b>Pendente</b> quando o saldo remanescente &eacute; menor que &minus;R$ 500.</li>
       <li>Relat&oacute;rio "FR'S Emitidas &mdash; detalhamento por m&ecirc;s": vem da aba "FR'S_Emitidas" da planilha de origem, com uma linha por FR (nota individual) emitida &mdash; n&uacute;mero da FR, data, fornecedor, <b>contrato</b>, BM de refer&ecirc;ncia, valor e NF. Os meses aparecem fechados por padr&atilde;o; clique para expandir e ver as FR'S daquele m&ecirc;s. Pode ser exportado em CSV.</li>
       <li><b>Contrato</b>: identificado pela coluna "CTR" (n&uacute;mero do contrato no SAP) cruzada com "Projeto" (PCI/MOA) da aba "FR'S_Emitidas". H&aacute; hoje 3 contratos vigentes: <code>4600184457 (PCI)</code> &mdash; compartilhado por Lau-Rent, Locar e Univale &mdash; e <code>4600185340 (MOA)</code> / <code>4600185359 (MOA)</code>, ambos apenas da Univale. O filtro de contrato afeta somente o relat&oacute;rio de FR'S Emitidas (a aba "FR'S_Emitidas" n&atilde;o tem o valor medido por contrato, s&oacute; o faturado); os demais indicadores (KPIs, resumo por subcontrato, gr&aacute;fico) continuam por fornecedor/m&ecirc;s, vindos da aba "Resumo_GERAL".</li>
       <li>A planilha de origem tem outras abas (composi&ccedil;&atilde;o por item) que n&atilde;o entraram nesta vers&atilde;o &mdash; pe&ccedil;a para incluir se for &uacute;til.</li>
@@ -491,9 +493,11 @@ function renderBmReconciliation(rows, mesesUnicos){
 function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
   var el = document.getElementById(elId);
   if (!el) return;
+  var diffArr = meses.map(function(m,i){ return (faturadoArr[i]||0) - (medidoArr[i]||0); });
   var traces = [
     { type:'bar', name:'BM\'S (Medido)', x:meses, y:medidoArr, marker:{color:CHART_INFO_BLUE}, hovertemplate:'%{x}<br>BM\'S: R$ %{y:,.2f}<extra></extra>' },
     { type:'bar', name:'FR\'S Emitidas', x:meses, y:faturadoArr, marker:{color:CHART_GREEN}, hovertemplate:'%{x}<br>FR\'S: R$ %{y:,.2f}<extra></extra>' },
+    { type:'scatter', mode:'lines+markers', name:'Saldo Remanescente do mês', x:meses, y:diffArr, yaxis:'y2', line:{color:CHART_NAVY,width:2,dash:'dot'}, marker:{size:5,color:CHART_NAVY}, hovertemplate:'%{x}<br>Saldo Remanescente do mês: R$ %{y:,.2f}<extra></extra>' },
     { type:'scatter', mode:'lines+markers', name:'Saldo Pendente Acumulado', x:meses, y:pendAcumArr, yaxis:'y2', line:{color:CHART_WARN,width:3}, marker:{size:6,color:CHART_WARN}, hovertemplate:'%{x}<br>Acumulado: R$ %{y:,.2f}<extra></extra>' }
   ];
   Plotly.react(elId, traces, {
@@ -501,7 +505,7 @@ function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
     margin:{t:30,b:60,l:60,r:60},
     xaxis:{tickangle:-45},
     yaxis:{title:'R$ por mês'},
-    yaxis2:{title:'R$ acumulado', overlaying:'y', side:'right'},
+    yaxis2:{title:'R$ acumulado / saldo remanescente', overlaying:'y', side:'right', zeroline:true, zerolinecolor:'#94a3b8'},
     legend:{orientation:'h', y:1.18},
     font:{family:'Segoe UI',size:10}
   }, PLOTLY_CONFIG);
@@ -634,7 +638,7 @@ function renderPendKpis(a){
   document.getElementById('p-kpi-grid').innerHTML =
     kpiCard('Total medido (BM\'S)', fmtBRLM(a.totalMedido), null, 'accent') +
     kpiCard('Total faturado (FR\'S)', fmtBRLM(a.totalFaturado), fmtPct(a.totalMedido?a.totalFaturado/a.totalMedido:0), 'ok') +
-    kpiCard('Diferença total (Faturado − Medido)', '<span class="'+(a.totalDiferenca<0?'v-neg':'v-pos')+'">'+fmtBRLM(a.totalDiferenca)+'</span>', a.totalDiferenca<-0.005?'Pendente de faturamento':(a.totalDiferenca>0.005?'Faturado acima do medido':'Reconciliado')) +
+    kpiCard('Saldo Remanescente (Faturado − Medido)', '<span class="'+(a.totalDiferenca<0?'v-neg':'v-pos')+'">'+fmtBRLM(a.totalDiferenca)+'</span>', a.totalDiferenca<-0.005?'Pendente de faturamento':(a.totalDiferenca>0.005?'Faturado acima do medido':'Reconciliado')) +
     kpiCard('Pendente a faturar', fmtBRLM(Math.max(0,-a.totalDiferenca)), 'valor líquido em aberto');
 }
 
@@ -827,7 +831,7 @@ document.getElementById('btn-print').addEventListener('click', async function(){
       '<div class="print-kpi"><div class="l">Pendente a faturar</div><div class="v">'+fmtBRLM(Math.max(0,-a.totalDiferenca))+'</div></div>'+
     '</div>'+
     '<div class="print-content">'+comboHtml+'</div>'+
-    '<div class="print-content"><table><thead><tr><th>Subcontrato</th><th class="num">Medido (R$)</th><th class="num">Faturado (R$)</th><th class="num">Diferen&ccedil;a (R$)</th><th class="num">% Faturado</th></tr></thead><tbody>'+
+    '<div class="print-content"><table><thead><tr><th>Subcontrato</th><th class="num">Medido (R$)</th><th class="num">Faturado (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th></tr></thead><tbody>'+
     forns.map(function(f){
       var d = a.porFornecedor[f];
       return '<tr><td>'+esc(f)+'</td><td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num">'+fmtBRL(d.diferenca)+'</td><td class="num">'+fmtPct(d.medido?d.faturado/d.medido:0)+'</td></tr>';
@@ -835,7 +839,7 @@ document.getElementById('btn-print').addEventListener('click', async function(){
     '<tr style="font-weight:800;"><td>Total Geral</td><td class="num">'+fmtBRL(a.totalMedido)+'</td><td class="num">'+fmtBRL(a.totalFaturado)+'</td><td class="num">'+fmtBRL(a.totalDiferenca)+'</td><td class="num">'+fmtPct(a.totalMedido?a.totalFaturado/a.totalMedido:0)+'</td></tr>'+
     '</tbody></table></div>'+
     contratoHtml+
-    '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx (aba Resumo_GERAL / FR\'S_Emitidas). Valores em Reais (R$). Diferen&ccedil;a negativa = valor medido ainda pendente de emiss&atilde;o de FR.</div>';
+    '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx (aba Resumo_GERAL / FR\'S_Emitidas). Valores em Reais (R$). Saldo Remanescente negativo = valor medido ainda pendente de emiss&atilde;o de FR.</div>';
   document.getElementById('print-content').innerHTML = html;
   window.print();
 });
