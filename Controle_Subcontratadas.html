@@ -143,6 +143,23 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .dark-box{background:#2a3b66;border-radius:12px;padding:14px 16px 8px;margin-top:16px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .dark-box h2{color:#e6ebf7;text-transform:uppercase;letter-spacing:.06em;font-size:11px;text-align:center;margin:0 0 4px;}
 .dark-box #chart-bm-combo{margin-top:0;}
+.cd-hint{font-size:11px;color:#c4d0ea;text-align:center;margin-bottom:2px;}
+.combo-detail:empty{display:none;}
+.combo-detail{margin:6px 0 10px;background:rgba(255,255,255,.07);border:1px solid #43568a;border-radius:10px;padding:12px 14px;color:#e6ebf7;font-size:12px;}
+.cd-head{display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.cd-title{font-size:15px;font-weight:800;color:#fff;}
+.cd-sub{font-size:11px;color:#c4d0ea;margin:2px 0 6px;}
+.cd-scroll{overflow-x:auto;}
+.cd-frs{max-height:320px;overflow-y:auto;}
+.cd-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+.cd-table th{color:#c4d0ea;text-align:left;font-weight:700;padding:5px 8px;border-bottom:1px solid #5a6ea6;white-space:nowrap;position:sticky;top:0;background:#33467a;}
+.cd-table td{padding:4px 8px;border-bottom:1px solid #43568a;white-space:nowrap;}
+.cd-table .num{text-align:right;}
+.cd-table .cd-neg{color:#ff8f8f;font-weight:700;}
+.cd-table .cd-total td{font-weight:800;border-top:2px solid #8393bf;}
+.cd-empty{font-size:12px;color:#c4d0ea;padding:6px 0;}
+.cd-close{padding:2px 9px;font-size:16px;line-height:1;background:#3a4f84;border-color:#5a6ea6;color:#e6ebf7;}
+.combo-detail .badge{color:#1b2733;}
 .dark-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start;}
 .dark-grid .chart-box{height:340px;}
 @media (max-width:900px){.dark-grid{grid-template-columns:1fr;}}
@@ -327,7 +344,9 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     <div class="table-wrap"><table class="rep pivot" id="tbl-bm"></table></div>
     <div class="dark-box">
       <h2>BM'S x FR'S Emitidas por m&ecirc;s + Saldo Pendente Acumulado</h2>
+      <div class="cd-hint">Clique em um m&ecirc;s do gr&aacute;fico para ver o BM e as FR'S correspondentes. Barras vermelhas abaixo de 0 = BM medido ainda sem FR emitida.</div>
       <div class="chart-box" id="chart-bm-combo"></div>
+      <div class="combo-detail" id="combo-detail"></div>
     </div>
   </div>
 
@@ -498,6 +517,7 @@ function applyFiltersAndRender(){
 var CHART_GREEN='#92D050', CHART_INFO_BLUE='#2E7BC4', CHART_NAVY='#002B5C', CHART_WARN='#eda100';
 var GAUGE_BG='#2a3b66'; // mesmo fundo escuro dos velocimetros
 var GAUGE_CYAN='#4fd1e5'; // cor clara para linhas sobre o fundo escuro
+var CHART_RED='#ff6b6b'; // barras de BM ainda sem FR (abaixo de 0)
 var FORN_COLOR = { 'Lau rent':CHART_INFO_BLUE, 'Locar':CHART_GREEN, 'Univale':CHART_WARN, 'Total geral':'#4fd1e5' };
 var PLOTLY_CONFIG = { displayModeBar:false, responsive:true };
 
@@ -605,7 +625,10 @@ function renderBmReconciliation(rows, mesesUnicos){
   var tbl = document.getElementById('tbl-bm');
   tbl.innerHTML = '<thead><tr>'+head1+'</tr><tr>'+head2+'</tr></thead><tbody>'+body+'</tbody><tfoot>'+foot+'</tfoot>';
 
+  window.__lastBmMeses = mesesUnicos;
   renderComboChart('chart-bm-combo', mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
+  // se o mes clicado ainda existe depois de mudar os filtros, mantem o detalhe atualizado; senao limpa
+  showComboDetail(mesesUnicos.indexOf(window.__comboSel)>=0 ? window.__comboSel : null, true);
 }
 
 function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
@@ -615,12 +638,20 @@ function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
   // do mais atual (esquerda) para o mais antigo (direita); acumulado ja calculado em ordem cronologica
   meses = meses.slice().reverse(); medidoArr = medidoArr.slice().reverse(); faturadoArr = faturadoArr.slice().reverse();
   diffArr = diffArr.reverse(); pendAcumArr = pendAcumArr.slice().reverse();
+  // BM medido que ainda nao virou FR, por mes: barras para BAIXO do zero (valor negativo no eixo)
+  var naoFatArr = medidoArr.map(function(m,i){ return Math.max(0, m - (faturadoArr[i]||0)); });
   var traces = [
     { type:'bar', name:'BM\'S (Medido)', x:meses, y:medidoArr, marker:{color:CHART_INFO_BLUE}, hovertemplate:'%{x}<br>BM\'S: R$ %{y:,.2f}<extra></extra>' },
     { type:'bar', name:'FR\'S Emitidas', x:meses, y:faturadoArr, marker:{color:CHART_GREEN}, hovertemplate:'%{x}<br>FR\'S: R$ %{y:,.2f}<extra></extra>' },
+    { type:'bar', name:'Não faturado (BM sem FR)', x:meses, y:naoFatArr.map(function(v){ return -v; }), customdata:naoFatArr, marker:{color:CHART_RED}, hovertemplate:'%{x}<br>Não faturado: R$ %{customdata:,.2f}<extra></extra>' },
     { type:'scatter', mode:'lines+markers', name:'Saldo Remanescente do mês', x:meses, y:diffArr, yaxis:'y2', line:{color:GAUGE_CYAN,width:2,dash:'dot'}, marker:{size:5,color:GAUGE_CYAN}, hovertemplate:'%{x}<br>Saldo Remanescente do mês: R$ %{y:,.2f}<extra></extra>' },
     { type:'scatter', mode:'lines+markers', name:'Saldo Pendente Acumulado', x:meses, y:pendAcumArr, yaxis:'y2', line:{color:CHART_WARN,width:3}, marker:{size:6,color:CHART_WARN}, hovertemplate:'%{x}<br>Acumulado: R$ %{y:,.2f}<extra></extra>' }
   ];
+  // eixo esquerdo com folga so para as barras abaixo de 0 (o eixo direito segue automatico)
+  var maxOf = function(a){ return a.reduce(function(m,v){ return v>m?v:m; }, 0); };
+  var posY = maxOf(medidoArr.concat(faturadoArr)), negY = maxOf(naoFatArr);
+  var yMax = (posY||1)*1.1, yMin = negY>0 ? -negY*1.25 : 0;
+  var selIdx = meses.indexOf(window.__comboSel);
   // mesmo padrao escuro dos velocimetros; linhas de saldo em cores claras para continuarem visiveis
   var axTitle = function(t){ return { text:t, font:{color:'#c4d0ea'} }; };
   Plotly.react(elId, traces, {
@@ -628,11 +659,62 @@ function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
     margin:{t:40,b:60,l:65,r:70},
     paper_bgcolor:GAUGE_BG, plot_bgcolor:GAUGE_BG,
     xaxis:{tickangle:-45, tickfont:{color:'#cbd5f0'}, linecolor:'#8393bf', showgrid:false},
-    yaxis:{title:axTitle('R$ por mês'), tickfont:{color:'#cbd5f0'}, gridcolor:'#43568a', zerolinecolor:'#8393bf'},
-    yaxis2:{title:axTitle('R$ acumulado / saldo remanescente'), tickfont:{color:'#cbd5f0'}, overlaying:'y', side:'right', showgrid:false, zeroline:true, zerolinecolor:'#c4d0ea'},
+    yaxis:{title:axTitle('R$ por mês (abaixo de 0 = não faturado)'), tickfont:{color:'#cbd5f0'}, gridcolor:'#43568a', zeroline:true, zerolinecolor:'#c4d0ea', zerolinewidth:1.5, range:[yMin, yMax]},
+    yaxis2:{title:axTitle('R$ acumulado / saldo remanescente'), tickfont:{color:'#cbd5f0'}, overlaying:'y', side:'right', showgrid:false, zeroline:true, zerolinecolor:'rgba(255,176,32,.5)', zerolinewidth:1},
     legend:{orientation:'h', x:.5, xanchor:'center', y:1.12, font:{color:'#cbd5f0', size:11}},
-    font:{family:'Segoe UI, Arial, sans-serif', size:10, color:'#e6ebf7'}
-  }, PLOTLY_CONFIG);
+    font:{family:'Segoe UI, Arial, sans-serif', size:10, color:'#e6ebf7'},
+    shapes: selIdx>=0 ? [comboHighlight(selIdx)] : []
+  }, PLOTLY_CONFIG).then(function(){
+    if (elId !== 'chart-bm-combo') return;
+    // clicar num mes mostra o BM e as FR'S correspondentes logo abaixo do grafico
+    if (el.removeAllListeners) el.removeAllListeners('plotly_click');
+    el.on('plotly_click', function(ev){
+      var p = ev && ev.points && ev.points[0];
+      if (!p) return;
+      window.__comboSel = p.x;
+      var i = el.data[0].x.indexOf(p.x);
+      Plotly.relayout(el, { shapes: i>=0 ? [comboHighlight(i)] : [] });
+      showComboDetail(p.x);
+    });
+  });
+}
+function comboHighlight(i){
+  return { type:'rect', xref:'x', yref:'paper', x0:i-0.5, x1:i+0.5, y0:0, y1:1, fillcolor:'rgba(255,255,255,0.10)', line:{width:0}, layer:'below' };
+}
+
+/* ---- detalhe do mes clicado no grafico: BM por fornecedor + FR'S emitidas daquele mes ---- */
+function showComboDetail(mes, noScroll){
+  var box = document.getElementById('combo-detail');
+  var rows = window.__lastGeralResumo || [], meses = window.__lastBmMeses || [];
+  var idx = meses.indexOf(mes);
+  if (!box || idx<0){ if (box) box.innerHTML = ''; return; }
+  var bm = 'BM '+String(idx+1).padStart(2,'0');
+  var forns = ALL_FORNS.filter(function(f){ return rows.some(function(r){ return r.fornecedor===f; }); });
+  var totMed = 0, totFat = 0, totQtd = 0;
+  var frs = (state.frs||[]).filter(function(r){ return r.mesano===mes && forns.indexOf(r.fornecedor)!==-1; })
+    .sort(function(x,y){ return ALL_FORNS.indexOf(x.fornecedor)-ALL_FORNS.indexOf(y.fornecedor) || dataSortKey(y.data)-dataSortKey(x.data); });
+  var resumoTr = forns.map(function(f){
+    var r = findResumo(rows, mes, f), med = r?r.medido:0, fat = r?r.faturado:0, pend = med-fat;
+    var qtd = frs.filter(function(x){ return x.fornecedor===f; }).length;
+    totMed += med; totFat += fat; totQtd += qtd;
+    return '<tr><td><span class="badge '+(FORN_BADGE[f]||'')+'">'+esc(f)+'</span></td><td>'+bm+'</td><td class="num">'+(med?fmtBRL(med):'&mdash;')+'</td><td class="num">'+(fat?fmtBRL(fat):'&mdash;')+'</td><td class="num '+(pend>0.005?'cd-neg':'')+'">'+fmtBRL(pend)+'</td><td class="num">'+qtd+'</td></tr>';
+  }).join('');
+  var tot = totMed-totFat;
+  var frsTr = frs.map(function(r){
+    return '<tr><td>'+esc(r.fr)+'</td><td>'+esc(r.data)+'</td><td><span class="badge '+(FORN_BADGE[r.fornecedor]||'')+'">'+esc(r.fornecedor)+'</span></td><td>'+esc(r.contrato)+'</td><td>'+esc(r.bm)+'</td><td class="num">'+fmtBRL(r.valor)+'</td><td>'+esc(r.nf)+'</td></tr>';
+  }).join('');
+  box.innerHTML =
+    '<div class="cd-head"><div class="cd-title">'+esc(mes)+' &middot; '+bm+'</div><button class="btn cd-close" id="combo-detail-close" title="Fechar" aria-label="Fechar">&times;</button></div>'+
+    '<div class="cd-sub">BM previsto x FR\'S emitidas por fornecedor (em vermelho = BM medido ainda sem FR; valor negativo = faturado a maior)</div>'+
+    '<div class="cd-scroll"><table class="cd-table"><thead><tr><th>Fornecedor</th><th>BM</th><th class="num">BM\'S (Medido)</th><th class="num">FR\'S Emitidas</th><th class="num">N&atilde;o faturado (BM &minus; FR)</th><th class="num">Qtd. FR\'S</th></tr></thead><tbody>'+resumoTr+
+    (forns.length>1 ? '<tr class="cd-total"><td colspan="2">Total</td><td class="num">'+fmtBRL(totMed)+'</td><td class="num">'+fmtBRL(totFat)+'</td><td class="num '+(tot>0.005?'cd-neg':'')+'">'+fmtBRL(tot)+'</td><td class="num">'+totQtd+'</td></tr>' : '')+'</tbody></table></div>'+
+    '<div class="cd-sub" style="margin-top:12px;">FR\'S emitidas em '+esc(mes)+'</div>'+
+    (frs.length ? '<div class="cd-scroll cd-frs"><table class="cd-table"><thead><tr><th>FR</th><th>Data</th><th>Fornecedor</th><th>Contrato</th><th>BM (ref.)</th><th class="num">Valor (R$)</th><th>NF</th></tr></thead><tbody>'+frsTr+'</tbody></table></div>' : '<div class="cd-empty">Nenhuma FR emitida neste m&ecirc;s.</div>');
+  document.getElementById('combo-detail-close').addEventListener('click', function(){
+    window.__comboSel = null; box.innerHTML = '';
+    var el = document.getElementById('chart-bm-combo'); if (el && el.data) Plotly.relayout(el, { shapes: [] });
+  });
+  if (!noScroll) box.scrollIntoView({ block:'nearest', behavior:'smooth' });
 }
 
 /* ---- velocimetro: BM'S (previsto) x FR'S emitidas (real); % = FR / BM, 100% = BM inteiro virou FR ---- */
@@ -737,7 +819,13 @@ async function doPrintGeral(sel){
       barImg = await Plotly.toImage('chart-mes', { format:'png', width:820, height:320, scale:2 });
       donutImg = await Plotly.toImage('chart-donut', { format:'png', width:360, height:320, scale:2 });
     }
-    if (sel.combo) comboImg = await Plotly.toImage('chart-bm-combo', { format:'png', width:1000, height:420, scale:2 });
+    if (sel.combo){
+      // o destaque do mes clicado na tela nao vai para o papel
+      var cel = document.getElementById('chart-bm-combo'), shp = (cel.layout && cel.layout.shapes) || [];
+      if (shp.length) await Plotly.relayout(cel, { shapes: [] });
+      comboImg = await Plotly.toImage('chart-bm-combo', { format:'png', width:1000, height:420, scale:2 });
+      if (shp.length) await Plotly.relayout(cel, { shapes: shp });
+    }
   } catch(e){ console.error(e); }
   var rr = window.__lastGeralResumo || [];
   var fornsG = ALL_FORNS.filter(function(f){ return rr.some(function(r){ return r.fornecedor===f; }); });
