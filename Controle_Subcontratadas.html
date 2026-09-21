@@ -59,7 +59,6 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:16px 18px;}
 .panel h2{margin:0 0 10px;font-size:14px;color:var(--navy);}
 .chart-box{width:100%;height:300px;}
-#chart-pend-combo{height:460px;}
 #chart-bm-combo{height:460px;margin-top:16px;}
 
 .share-wrap{position:relative;display:inline-block;}
@@ -248,6 +247,15 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
+    <h2>Resumo final &mdash; valores pendentes por subcontrato</h2>
+    <div class="table-wrap"><table class="rep" id="tbl-resumo-forn">
+      <thead><tr><th>Subcontrato</th><th class="num">BM'S (Medido) R$</th><th class="num">FR'S Emitidas (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th><th>Situa&ccedil;&atilde;o</th></tr></thead>
+      <tbody></tbody>
+      <tfoot></tfoot>
+    </table></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
     <h2>Veloc&iacute;metro de faturamento por fornecedor &mdash; FR'S emitidas (real) &divide; BM'S (previsto)</h2>
     <div class="gauge-grid" id="g-gauges"></div>
     <div class="gauge-legend">100% = todo o valor dos BM'S j&aacute; virou FR emitida. Acompanha os filtros desta aba.</div>
@@ -301,26 +309,6 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     </div>
 
     <div class="kpi-grid" id="p-kpi-grid"></div>
-
-    <div class="panel" style="margin-bottom:16px;">
-      <h2>Resumo final &mdash; valores pendentes por subcontrato</h2>
-      <div class="table-wrap"><table class="rep" id="tbl-resumo-forn">
-        <thead><tr><th>Subcontrato</th><th class="num">BM'S (Medido) R$</th><th class="num">FR'S Emitidas (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th><th>Situa&ccedil;&atilde;o</th></tr></thead>
-        <tbody></tbody>
-        <tfoot></tfoot>
-      </table></div>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px;">
-      <h2>Veloc&iacute;metro de faturamento por subcontrato &mdash; FR'S emitidas (real) &divide; BM'S (previsto)</h2>
-      <div class="gauge-grid" id="p-gauges"></div>
-      <div class="gauge-legend">100% = todo o valor dos BM'S j&aacute; virou FR emitida. O ponteiro mostra quanto do previsto (BM'S) j&aacute; foi realizado em FR'S.</div>
-    </div>
-
-    <div class="panel" style="margin-bottom:16px;">
-      <h2>BM'S x FR'S Emitidas por m&ecirc;s + Saldo Pendente Acumulado</h2>
-      <div class="chart-box" id="chart-pend-combo"></div>
-    </div>
 
     <div class="panel">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
@@ -491,7 +479,9 @@ function renderAll(a, rows, resumoRows){
   window.__lastGeralAgg = a;
   window.__lastGeralResumo = resumoRows;
   var fornsG = ALL_FORNS.filter(function(f){ return resumoRows.some(function(r){ return r.fornecedor===f; }); });
-  document.getElementById('g-gauges').innerHTML = fornsG.length ? gaugesHtml(computePendAgg(resumoRows, fornsG), fornsG) : '';
+  var aG = computePendAgg(resumoRows, fornsG);
+  renderPendSummary(aG, fornsG);
+  document.getElementById('g-gauges').innerHTML = fornsG.length ? gaugesHtml(aG, fornsG) : '';
 }
 
 function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
@@ -606,15 +596,13 @@ var PRINT_OPTIONS = {
   geral: [
     { id:'kpis',   label:'Indicadores (cartões do topo)', on:true },
     { id:'charts', label:'Gráficos: valor medido por mês e participação por fornecedor', on:true },
+    { id:'resumo', label:'Resumo final — valores pendentes por subcontrato', on:true },
     { id:'gauges', label:'Velocímetros por fornecedor (FR\'S real ÷ BM\'S previsto)', on:true },
     { id:'combo',  label:'Gráfico BM\'S x FR\'S Emitidas + saldo pendente', on:true },
     { id:'table',  label:'Tabela BM\'S x FR\'S Emitidas x Saldo Pendente (por mês)', on:true }
   ],
   pend: [
     { id:'kpis',     label:'Indicadores (cartões do topo)', on:true },
-    { id:'combo',    label:'Gráfico BM\'S x FR\'S Emitidas por mês + saldo acumulado', on:true },
-    { id:'resumo',   label:'Resumo final por subcontrato', on:true },
-    { id:'gauges',   label:'Velocímetros por fornecedor (FR\'S real ÷ BM\'S previsto)', on:true },
     { id:'contrato', label:'Resumo por contrato (FR\'S Emitidas)', on:true },
     { id:'frs',      label:'Detalhamento de todas as FR\'S emitidas, mês a mês (lista longa)', on:false }
   ]
@@ -665,7 +653,15 @@ async function doPrintGeral(sel){
   } catch(e){ console.error(e); }
   var rr = window.__lastGeralResumo || [];
   var fornsG = ALL_FORNS.filter(function(f){ return rr.some(function(r){ return r.fornecedor===f; }); });
-  var gaugesG = (sel.gauges && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Velocímetro de faturamento por fornecedor &mdash; FR\'S emitidas (real) &divide; BM\'S (previsto)</div>'+gaugesHtml(computePendAgg(rr, fornsG), fornsG)+'</div>' : '';
+  var aG = computePendAgg(rr, fornsG);
+  var resumoG = (sel.resumo && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Resumo final &mdash; valores pendentes por subcontrato</div><table><thead><tr><th>Subcontrato</th><th class="num">BM\'S (Medido) R$</th><th class="num">FR\'S Emitidas (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th></tr></thead><tbody>'+
+    fornsG.map(function(f){
+      var d = aG.porFornecedor[f];
+      return '<tr><td>'+esc(f)+'</td><td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num">'+fmtBRL(d.diferenca)+'</td><td class="num">'+fmtPct(d.medido?d.faturado/d.medido:0)+'</td></tr>';
+    }).join('')+
+    (fornsG.length>1 ? '<tr style="font-weight:800;"><td>Total Geral</td><td class="num">'+fmtBRL(aG.totalMedido)+'</td><td class="num">'+fmtBRL(aG.totalFaturado)+'</td><td class="num">'+fmtBRL(aG.totalDiferenca)+'</td><td class="num">'+fmtPct(aG.totalMedido?aG.totalFaturado/aG.totalMedido:0)+'</td></tr>' : '')+
+    '</tbody></table></div>' : '';
+  var gaugesG = (sel.gauges && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Velocímetro de faturamento por fornecedor &mdash; FR\'S emitidas (real) &divide; BM\'S (previsto)</div>'+gaugesHtml(aG, fornsG)+'</div>' : '';
   var kpiHtml = '<div class="print-kpi"><div class="l">Valor total medido</div><div class="v">'+fmtBRLM(a.totalValor)+'</div></div>' +
     a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('') +
     '<div class="print-kpi"><div class="l">Período</div><div class="v" style="font-size:13px;">'+(a.mesesUnicos[0]||'-')+' a '+(a.mesesUnicos[a.mesesUnicos.length-1]||'-')+'</div></div>';
@@ -687,6 +683,7 @@ async function doPrintGeral(sel){
     '</div>'+
     (sel.kpis ? '<div class="print-kpis">'+kpiHtml+'</div>' : '')+
     (sel.charts ? '<div class="print-content">'+chartsHtml+'</div>' : '')+
+    resumoG+
     gaugesG+
     (sel.combo ? '<div class="print-content">'+comboHtml+'</div>' : '')+
     (sel.table ? '<div class="print-content">'+document.getElementById('tbl-bm').outerHTML+'</div>' : '')+
@@ -843,20 +840,6 @@ function dataSortKey(d){
   return parseInt(p[2],10)*10000 + parseInt(p[1],10)*100 + parseInt(p[0],10);
 }
 
-function renderPendCharts(rows, forns, mesesUnicos){
-  var monthMedido = [], monthFaturado = [], monthPendAcum = [], acumPend = 0;
-  mesesUnicos.forEach(function(m){
-    var totMed=0, totFat=0;
-    forns.forEach(function(f){
-      var r = findResumo(rows, m, f);
-      if (r){ totMed += r.medido; totFat += r.faturado; }
-    });
-    monthMedido.push(totMed); monthFaturado.push(totFat);
-    acumPend += (totMed-totFat); monthPendAcum.push(acumPend);
-  });
-  renderComboChart('chart-pend-combo', mesesUnicos, monthMedido, monthFaturado, monthPendAcum);
-}
-
 function applyPendFiltersAndRender(){
   var fForn = document.getElementById('p-fornecedor').value;
   var fMesDe = document.getElementById('p-mes-de').value;
@@ -889,11 +872,7 @@ function populateFrsContratoFilter(rows){
 
 function renderPend(rows, forns){
   var a = computePendAgg(rows, forns);
-  var mesesUnicos = distinctSorted(rows,'mesano', function(x,y){ return mesAnoSortKey(x)-mesAnoSortKey(y); });
   renderPendKpis(a);
-  renderPendSummary(a, forns);
-  document.getElementById('p-gauges').innerHTML = gaugesHtml(a, forns);
-  renderPendCharts(rows, forns, mesesUnicos);
   window.__lastPendAgg = a;
   window.__lastPendForns = forns;
 }
@@ -936,12 +915,6 @@ async function doPrintPend(sel){
   var forns = window.__lastPendForns;
   if (!a || !forns) return;
   var hoje = new Date().toLocaleDateString('pt-BR');
-  var comboImg;
-  try {
-    if (sel.combo) comboImg = await Plotly.toImage('chart-pend-combo', { format:'png', width:1000, height:420, scale:2 });
-  } catch(e){ console.error(e); }
-  var comboHtml = comboImg ? '<img src="'+comboImg+'" style="width:100%;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
-
   var fMesDe = document.getElementById('p-mes-de').value, fMesAte = document.getElementById('p-mes-ate').value;
   var filtroContrato = window.__lastFrsContrato || '';
   var metaFiltros = 'Subcontrato: '+(forns.length===1?esc(forns[0]):'Todos')+
@@ -977,15 +950,6 @@ async function doPrintPend(sel){
       '<div class="print-kpi"><div class="l">Total faturado</div><div class="v">'+fmtBRLM(a.totalFaturado)+'</div></div>'+
       '<div class="print-kpi"><div class="l">Pendente a faturar</div><div class="v">'+fmtBRLM(Math.max(0,-a.totalDiferenca))+'</div></div>'+
     '</div>' : '')+
-    (sel.combo ? '<div class="print-content">'+comboHtml+'</div>' : '')+
-    (sel.resumo ? '<div class="print-content"><table><thead><tr><th>Subcontrato</th><th class="num">Medido (R$)</th><th class="num">Faturado (R$)</th><th class="num">Saldo Remanescente (R$)</th><th class="num">% Faturado</th></tr></thead><tbody>'+
-    forns.map(function(f){
-      var d = a.porFornecedor[f];
-      return '<tr><td>'+esc(f)+'</td><td class="num">'+fmtBRL(d.medido)+'</td><td class="num">'+fmtBRL(d.faturado)+'</td><td class="num">'+fmtBRL(d.diferenca)+'</td><td class="num">'+fmtPct(d.medido?d.faturado/d.medido:0)+'</td></tr>';
-    }).join('')+
-    '<tr style="font-weight:800;"><td>Total Geral</td><td class="num">'+fmtBRL(a.totalMedido)+'</td><td class="num">'+fmtBRL(a.totalFaturado)+'</td><td class="num">'+fmtBRL(a.totalDiferenca)+'</td><td class="num">'+fmtPct(a.totalMedido?a.totalFaturado/a.totalMedido:0)+'</td></tr>'+
-    '</tbody></table></div>' : '')+
-    (sel.gauges ? '<div class="print-content"><div class="print-sec-title">Velocímetro de faturamento por fornecedor &mdash; FR\'S emitidas (real) &divide; BM\'S (previsto)</div>'+gaugesHtml(a, forns)+'</div>' : '')+
     (sel.contrato ? contratoHtml : '')+
     (sel.frs ? frsPrintHtml(frsRows) : '')+
     '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx (aba Resumo_GERAL / FR\'S_Emitidas). Valores em Reais (R$). Saldo Remanescente negativo = valor medido ainda pendente de emiss&atilde;o de FR.</div>';
