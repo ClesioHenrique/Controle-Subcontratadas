@@ -133,12 +133,23 @@ table.pivot th.sub, table.pivot td{padding:6px 8px;}
 table.pivot td.num, table.pivot th.sub{font-size:12px;}
 
 .gauge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
-.gauge-card{background:#141a2e;border-radius:12px;padding:10px 10px 6px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid;}
+.gauge-card{background:#1f2c4d;border-radius:12px;padding:10px 10px 6px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid;}
 .gauge-title{color:#e6ebf7;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;}
 .gauge-title .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .gauge-card svg{width:100%;max-width:200px;height:auto;display:block;margin:0 auto;}
-.panel-dark{background:#141a2e;border-color:#141a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.panel-dark{background:#1f2c4d;border-color:#1f2c4d;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .panel-dark h2{color:#e6ebf7;text-transform:uppercase;letter-spacing:.06em;font-size:11px;text-align:center;}
+.dark-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:start;}
+.dark-grid .chart-box{height:340px;}
+@media (max-width:900px){.dark-grid{grid-template-columns:1fr;}}
+.panel-dark .period-bar{border-bottom-color:#36476f;}
+.panel-dark .period-info{border-left-color:#4fd1e5;}
+.panel-dark .period-info .label, .panel-dark .period-info .sub, .panel-dark .filter-field label, .period-hint{color:#b3c1e0;}
+.panel-dark .period-info .value{color:#fff;}
+.period-hint{font-size:11px;align-self:center;margin-left:auto;}
+.panel-dark select{background:#2b3b66;color:#e6ebf7;border-color:#42548a;}
+.panel-dark .btn{background:#2b3b66;border-color:#42548a;color:#e6ebf7;}
+.panel-dark .btn:hover{background:#35487d;}
 .period-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);}
 .period-info{border-left:4px solid var(--info-blue);padding:2px 12px;margin-right:4px;}
 .period-info .label{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
@@ -252,24 +263,27 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   <div class="kpi-grid gauge-row" id="g-gauges"></div>
   <div class="gauge-legend" style="margin:0 0 16px;">Veloc&iacute;metros: BM'S (previsto) x FR'S emitidas (real) &mdash; 100% = todo o valor dos BM'S j&aacute; virou FR emitida. Acompanham os filtros desta aba.</div>
 
-  <div class="grid2">
-    <div class="panel">
-      <div class="period-bar">
-        <div class="period-info"><div class="label">Per&iacute;odo</div><div class="value" id="c-periodo">-</div><div class="sub" id="c-periodo-sub"></div></div>
-        <div class="filter-field"><label>De</label>
-          <select id="c-mes-de"><option value="">--</option></select>
-        </div>
-        <div class="filter-field"><label>At&eacute;</label>
-          <select id="c-mes-ate"><option value="">--</option></select>
-        </div>
-        <button class="btn filter-clear" id="c-btn-clear">Todo o per&iacute;odo</button>
+  <div class="panel panel-dark" style="margin-bottom:16px;">
+    <div class="period-bar">
+      <div class="period-info"><div class="label">Per&iacute;odo</div><div class="value" id="c-periodo">-</div><div class="sub" id="c-periodo-sub"></div></div>
+      <div class="filter-field"><label>De</label>
+        <select id="c-mes-de"><option value="">--</option></select>
       </div>
-      <h2>Valor medido por m&ecirc;s (R$ milh&otilde;es)</h2>
-      <div class="chart-box" id="chart-mes"></div>
+      <div class="filter-field"><label>At&eacute;</label>
+        <select id="c-mes-ate"><option value="">--</option></select>
+      </div>
+      <button class="btn filter-clear" id="c-btn-clear">Todo o per&iacute;odo</button>
+      <span class="period-hint">O per&iacute;odo vale para o gr&aacute;fico &ldquo;Valor medido por m&ecirc;s&rdquo;.</span>
     </div>
-    <div class="panel panel-dark">
-      <h2>Participa&ccedil;&atilde;o por fornecedor</h2>
-      <div class="chart-box" id="chart-donut"></div>
+    <div class="dark-grid">
+      <div>
+        <h2>Valor medido por m&ecirc;s (R$ milh&otilde;es)</h2>
+        <div class="chart-box" id="chart-mes"></div>
+      </div>
+      <div>
+        <h2>Participa&ccedil;&atilde;o por fornecedor</h2>
+        <div class="chart-box" id="chart-donut"></div>
+      </div>
     </div>
   </div>
 
@@ -470,7 +484,7 @@ function applyFiltersAndRender(){
 }
 
 var CHART_GREEN='#92D050', CHART_INFO_BLUE='#2E7BC4', CHART_NAVY='#002B5C', CHART_WARN='#eda100';
-var GAUGE_BG='#141a2e'; // mesmo fundo escuro dos velocimetros
+var GAUGE_BG='#1f2c4d'; // mesmo fundo escuro dos velocimetros
 var FORN_COLOR = { 'Lau rent':CHART_INFO_BLUE, 'Locar':CHART_GREEN, 'Univale':CHART_WARN, 'Total geral':'#4fd1e5' };
 var PLOTLY_CONFIG = { displayModeBar:false, responsive:true };
 
@@ -499,7 +513,14 @@ function renderAll(a, rows, resumoRows){
     return { type:'bar', name:f, x:mesesDesc, y:idxC.slice().reverse().map(function(i){ return a.fornecedoresPorMes[f][i]/1e6; }),
       marker:{color:FORN_COLOR[f]||CHART_NAVY}, hovertemplate:f+' — %{x}: R$ %{y:.2f} M<extra></extra>' };
   });
-  Plotly.react('chart-mes', traces, { barmode:'stack', margin:{t:10,b:60,l:50,r:10}, xaxis:{tickangle:-45}, yaxis:{title:'R$ M'}, legend:{orientation:'h', y:1.15}, font:{family:'Segoe UI',size:10} }, PLOTLY_CONFIG);
+  Plotly.react('chart-mes', traces, {
+    barmode:'stack', margin:{t:30,b:60,l:55,r:15},
+    paper_bgcolor:GAUGE_BG, plot_bgcolor:GAUGE_BG,
+    xaxis:{tickangle:-45, tickfont:{color:'#cbd5f0'}, linecolor:'#6e7fab', showgrid:false},
+    yaxis:{title:{text:'R$ M', font:{color:'#b3c1e0'}}, tickfont:{color:'#cbd5f0'}, gridcolor:'#36476f', zerolinecolor:'#6e7fab'},
+    legend:{orientation:'h', x:.5, xanchor:'center', y:1.1, font:{color:'#cbd5f0', size:11}},
+    font:{family:'Segoe UI, Arial, sans-serif', size:10, color:'#e6ebf7'}
+  }, PLOTLY_CONFIG);
 
   // mesmo visual dos velocimetros: fundo escuro, anel na cor do fornecedor, total no centro
   Plotly.react('chart-donut', [{
@@ -514,7 +535,7 @@ function renderAll(a, rows, resumoRows){
     font:{family:'Segoe UI, Arial, sans-serif', color:'#e6ebf7'},
     annotations:[
       { x:.5, y:.56, xref:'paper', yref:'paper', showarrow:false, text:fmtBRLM(a.totalValor), font:{size:26, color:'#ffffff'} },
-      { x:.5, y:.44, xref:'paper', yref:'paper', showarrow:false, text:'TOTAL MEDIDO', font:{size:10, color:'#8fa0c4'} }
+      { x:.5, y:.44, xref:'paper', yref:'paper', showarrow:false, text:'TOTAL MEDIDO', font:{size:10, color:'#b3c1e0'} }
     ]
   }, PLOTLY_CONFIG);
 
@@ -611,21 +632,21 @@ function gaugeSvg(nome, medido, faturado){
     return 'M'+fx(s[0])+' '+fx(s[1])+' A'+rad+' '+rad+' 0 '+((d1-d0)>180?1:0)+' 1 '+fx(e[0])+' '+fx(e[1]);
   }
   var svg = '<svg viewBox="0 0 260 222" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Arial, sans-serif">';
-  svg += '<path d="'+arc(A0,A0+SW,r)+'" fill="none" stroke="#26304d" stroke-width="16" stroke-linecap="round"/>';
+  svg += '<path d="'+arc(A0,A0+SW,r)+'" fill="none" stroke="#36476f" stroke-width="16" stroke-linecap="round"/>';
   if (pc>0) svg += '<path d="'+arc(A0,A0+SW*pc,r)+'" fill="none" stroke="'+col+'" stroke-width="16" stroke-linecap="round"/>';
   for (var i=0;i<=10;i++){
     var d = A0+SW*i/10, a1=pt(d,r-13), a2=pt(d,r-(i%5===0?20:17));
-    svg += '<line x1="'+fx(a1[0])+'" y1="'+fx(a1[1])+'" x2="'+fx(a2[0])+'" y2="'+fx(a2[1])+'" stroke="#4a5b85" stroke-width="1.5"/>';
+    svg += '<line x1="'+fx(a1[0])+'" y1="'+fx(a1[1])+'" x2="'+fx(a2[0])+'" y2="'+fx(a2[1])+'" stroke="#6e7fab" stroke-width="1.5"/>';
   }
   for (var j=0;j<=4;j++){
     var lp = pt(A0+SW*j/4, r-32);
-    svg += '<text x="'+fx(lp[0])+'" y="'+fx(lp[1]+3)+'" text-anchor="middle" font-size="9" fill="#8fa0c4">'+(j*25)+'%</text>';
+    svg += '<text x="'+fx(lp[0])+'" y="'+fx(lp[1]+3)+'" text-anchor="middle" font-size="9" fill="#b3c1e0">'+(j*25)+'%</text>';
   }
   var nd = A0+SW*pc, n1=pt(nd,16), n2=pt(nd,66);
   svg += '<line x1="'+fx(n1[0])+'" y1="'+fx(n1[1])+'" x2="'+fx(n2[0])+'" y2="'+fx(n2[1])+'" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>';
-  svg += '<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="#141a2e" stroke="#ffffff" stroke-width="2.5"/>';
+  svg += '<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="#1f2c4d" stroke="#ffffff" stroke-width="2.5"/>';
   svg += '<text x="'+cx+'" y="170" text-anchor="middle" font-size="30" font-weight="300" fill="#ffffff">'+fmtPct(p)+'</text>';
-  svg += '<text x="'+cx+'" y="188" text-anchor="middle" font-size="9.5" fill="#8fa0c4" letter-spacing=".5">BM\'S PREVISTO x FR\'S REAL</text>';
+  svg += '<text x="'+cx+'" y="188" text-anchor="middle" font-size="9.5" fill="#b3c1e0" letter-spacing=".5">BM\'S PREVISTO x FR\'S REAL</text>';
   svg += '<text x="'+cx+'" y="205" text-anchor="middle" font-size="10" fill="#cbd5f0">'+fmtBRLM(medido)+' x '+fmtBRLM(faturado)+'</text>';
   return svg + '</svg>';
 }
