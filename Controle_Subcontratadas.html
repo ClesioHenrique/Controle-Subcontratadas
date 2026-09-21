@@ -33,6 +33,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .btn:hover{background:#f2f5f8;}
 .btn-primary{background:var(--navy);border-color:var(--navy);color:#fff;}
 .btn-primary:hover{background:var(--navy-700);}
+.btn-icon{padding:8px 10px;font-size:16px;line-height:1;}
 .btn-dl{background:var(--green);border-color:var(--green);color:var(--navy);display:none;}
 .btn:disabled{opacity:.55;cursor:not-allowed;}
 .src-info{font-size:11.5px;color:var(--text-muted);}
@@ -178,7 +179,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 
   <div class="toolbar">
     <button class="btn btn-primary" id="btn-refresh">&#128193; Selecionar Arquivo</button>
-    <button class="btn" id="btn-quick-update" title="Rel&ecirc; o mesmo arquivo do disco, atualizando Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias">&#128260; Atualizar</button>
+    <button class="btn btn-icon" id="btn-quick-update" aria-label="Atualizar" title="Atualizar: rel&ecirc; o mesmo arquivo do disco, atualizando Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias">&#9881;</button>
     <button class="btn btn-dl" id="btn-download">&#128190; Baixar arquivo atualizado</button>
     <div class="share-wrap">
       <button class="btn" id="btn-share">&#128228; Compartilhar</button>
@@ -318,7 +319,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
       <li><b>Contrato</b>: identificado pela coluna "CTR" (n&uacute;mero do contrato no SAP) cruzada com "Projeto" (PCI/MOA) da aba "FR'S_Emitidas". H&aacute; hoje 3 contratos vigentes: <code>4600184457 (PCI)</code> &mdash; compartilhado por Lau-Rent, Locar e Univale &mdash; e <code>4600185340 (MOA)</code> / <code>4600185359 (MOA)</code>, ambos apenas da Univale. O filtro de contrato afeta somente o relat&oacute;rio de FR'S Emitidas (a aba "FR'S_Emitidas" n&atilde;o tem o valor medido por contrato, s&oacute; o faturado); os demais indicadores (KPIs, resumo por subcontrato, gr&aacute;fico) continuam por fornecedor/m&ecirc;s, vindos da aba "Resumo_GERAL".</li>
       <li>A planilha de origem tem outras abas (composi&ccedil;&atilde;o por item) que n&atilde;o entraram nesta vers&atilde;o &mdash; pe&ccedil;a para incluir se for &uacute;til.</li>
       <li>O bot&atilde;o <b>Selecionar Arquivo</b> l&ecirc; o .xlsx inteiro no navegador (nada sai da m&aacute;quina) e atualiza a tela na hora. Depois, <b>Baixar arquivo atualizado</b> salva um novo HTML para substituir este arquivo no projeto.</li>
-      <li>O bot&atilde;o <b>&#128260; Atualizar</b> rel&ecirc; o mesmo arquivo j&aacute; selecionado direto do disco (sem abrir o seletor de novo), atualizando as duas abas &mdash; Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias &mdash; de uma vez. Funciona em navegadores baseados em Chromium (Edge, Chrome); antes de us&aacute;-lo pela primeira vez, clique em <b>Selecionar Arquivo</b> uma vez para o navegador saber qual arquivo reler.</li>
+      <li>O bot&atilde;o de engrenagem <b>&#9881;</b> (Atualizar) rel&ecirc; o mesmo arquivo j&aacute; selecionado direto do disco (sem abrir o seletor de novo), atualizando as duas abas &mdash; Vis&atilde;o Geral e FR'S Emitidas x Pend&ecirc;ncias &mdash; de uma vez. Funciona em navegadores baseados em Chromium (Edge, Chrome); antes de us&aacute;-lo pela primeira vez, clique em <b>Selecionar Arquivo</b> uma vez para o navegador saber qual arquivo reler.</li>
     </ul>
   </details>
 
@@ -363,7 +364,7 @@ function populateFilters(){
   var meses = distinctSorted(c,'mesano', function(a,b){ return mesAnoSortKey(a)-mesAnoSortKey(b); });
   ['f-mes-de','f-mes-ate'].forEach(function(id){
     var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
-    meses.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+    meses.slice().reverse().forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   });
   var selC = document.getElementById('f-contrato');
   selC.innerHTML = '<option value="">Todos os contratos</option>';
@@ -475,7 +476,7 @@ function renderBmReconciliation(rows, mesesUnicos){
     acumPend += (totMed-totFat); monthPendAcum.push(acumPend);
     var bmLabel = 'BM '+String(idx+1).padStart(2,'0');
     return '<tr><td>'+esc(m)+'</td><td class="bmcol">'+bmLabel+'</td>'+cells+'</tr>';
-  }).join('');
+  }).reverse().join('');
 
   var footCells = forns.map(function(f){
     var d = totPerForn[f], pend = d.medido-d.faturado;
@@ -612,7 +613,7 @@ function populatePendFilters(){
   var meses = distinctSorted(r,'mesano', function(a,b){ return mesAnoSortKey(a)-mesAnoSortKey(b); });
   ['p-mes-de','p-mes-ate'].forEach(function(id){
     var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
-    meses.forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+    meses.slice().reverse().forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   });
 }
 
@@ -672,10 +673,10 @@ function findResumo(rows, mes, forn){
 function renderFrsReport(rows){
   var wrap = document.getElementById('frs-groups');
   if (!rows.length){ wrap.innerHTML = '<div class="empty-state">Nenhuma FR encontrada para o filtro selecionado.</div>'; return; }
-  var meses = distinctSorted(rows,'mesano', function(x,y){ return mesAnoSortKey(x)-mesAnoSortKey(y); });
+  var meses = distinctSorted(rows,'mesano', function(x,y){ return mesAnoSortKey(y)-mesAnoSortKey(x); });
   wrap.innerHTML = meses.map(function(m){
     var groupRows = rows.filter(function(r){ return r.mesano===m; })
-      .sort(function(x,y){ return dataSortKey(x.data)-dataSortKey(y.data); });
+      .sort(function(x,y){ return dataSortKey(y.data)-dataSortKey(x.data); });
     var total = groupRows.reduce(function(a,r){ return a+r.valor; },0);
     var bms = groupRows.reduce(function(acc,r){ if (r.bm && acc.indexOf(r.bm)===-1) acc.push(r.bm); return acc; }, []).sort();
     var bmLabel = bms.join(', ');
@@ -767,7 +768,7 @@ function csvCell(v){ var s=String(v==null?'':v); return '"'+s.replace(/"/g,'""')
 function frsRowsToCsv(rows){
   var header = ['Mês/Ano','FR','Data','Fornecedor','Contrato','BM','Valor (R$)','NF'].map(csvCell).join(';');
   var lines = [header];
-  rows.slice().sort(function(x,y){ return mesAnoSortKey(x.mesano)-mesAnoSortKey(y.mesano) || dataSortKey(x.data)-dataSortKey(y.data); })
+  rows.slice().sort(function(x,y){ return mesAnoSortKey(y.mesano)-mesAnoSortKey(x.mesano) || dataSortKey(y.data)-dataSortKey(x.data); })
     .forEach(function(r){ lines.push([r.mesano,r.fr,r.data,r.fornecedor,r.contrato,r.bm,fmtBRL(r.valor),r.nf].map(csvCell).join(';')); });
   return lines.join('\r\n');
 }
@@ -1228,7 +1229,7 @@ async function attemptAutoLoad(){
       await loadAndRender(file, 'Atualizado automaticamente a partir do último arquivo usado (Visão Geral e FR\'S Emitidas x Pendências).');
     } else {
       document.getElementById('progress-panel').classList.add('show');
-      log('Arquivo salvo encontrado — clique em "🔄 Atualizar" para carregar os dados mais recentes.', 'ok');
+      log('Arquivo salvo encontrado — clique na engrenagem ⚙ (Atualizar) para carregar os dados mais recentes.', 'ok');
       setTimeout(hideProgress, 6000);
     }
   } catch(e){ console.error(e); }
