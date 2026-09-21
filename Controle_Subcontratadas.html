@@ -43,6 +43,12 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .filter-field label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);}
 .filter-field select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;min-width:130px;}
 .filter-clear{align-self:flex-end;}
+.filter-field input[type=search]{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;min-width:220px;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;}
+.chip{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+.chip:hover{background:#f2f5f8;}
+.chip.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.chip.on:hover{background:var(--navy-700);}
 
 .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:18px;}
 #kpi-grid{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;box-shadow:0 6px 10px -8px rgba(0,43,92,.25);}
@@ -327,8 +333,8 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     <h2>BM'S x FR'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</h2>
 
     <div class="filters">
-      <div class="filter-field"><label>Fornecedor</label>
-        <select id="f-fornecedor"><option value="">Todos</option></select>
+      <div class="filter-field"><label>Fornecedor (um ou mais)</label>
+        <div class="chips" id="f-fornecedor"></div>
       </div>
       <div class="filter-field"><label>M&ecirc;s/Ano de</label>
         <select id="f-mes-de"><option value="">--</option></select>
@@ -387,6 +393,10 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
         <div class="filter-field"><label>Contrato</label>
           <select id="frs-contrato"><option value="">Todos os contratos</option></select>
         </div>
+        <div class="filter-field"><label>Pesquisar FR</label>
+          <input type="search" id="frs-busca" placeholder="N&ordm; da FR ou NF" autocomplete="off">
+        </div>
+        <span class="src-info" id="frs-busca-info" style="align-self:flex-end;padding-bottom:8px;"></span>
       </div>
       <div id="frs-groups"></div>
     </div>
@@ -455,11 +465,29 @@ function distinctSorted(rows, field, sorter){
   var arr = Object.keys(s);
   return sorter ? arr.sort(sorter) : arr.sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
 }
+/* seletor de fornecedores da Visao Geral: "Todos" ou um ou mais fornecedores marcados */
+var fornecedoresLista = [], fSel = [];
+function getSelForns(){ return fSel.slice(); }
+function renderFornChips(){
+  var box = document.getElementById('f-fornecedor');
+  box.innerHTML = '<button type="button" class="chip'+(fSel.length?'':' on')+'" data-v="">Todos</button>' +
+    fornecedoresLista.map(function(f){ return '<button type="button" class="chip'+(fSel.indexOf(f)!==-1?' on':'')+'" data-v="'+esc(f)+'" aria-pressed="'+(fSel.indexOf(f)!==-1)+'">'+esc(f)+'</button>'; }).join('');
+}
+document.getElementById('f-fornecedor').addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('.chip');
+  if (!b) return;
+  var v = b.getAttribute('data-v');
+  if (!v) fSel = [];
+  else { var i = fSel.indexOf(v); if (i===-1) fSel.push(v); else fSel.splice(i,1); }
+  if (fSel.length && fSel.length===fornecedoresLista.length) fSel = [];  // todos marcados = Todos
+  renderFornChips();
+  applyFiltersAndRender();
+});
 function populateFilters(){
   var c = state.rows;
-  var selF = document.getElementById('f-fornecedor');
-  selF.innerHTML = '<option value="">Todos</option>';
-  distinctSorted(c,'fornecedor').forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; selF.appendChild(o); });
+  fornecedoresLista = distinctSorted(c,'fornecedor');
+  fSel = fSel.filter(function(v){ return fornecedoresLista.indexOf(v)!==-1; });
+  renderFornChips();
   var meses = distinctSorted(c,'mesano', function(a,b){ return mesAnoSortKey(a)-mesAnoSortKey(b); });
   ['f-mes-de','f-mes-ate','c-mes-de','c-mes-ate'].forEach(function(id){
     var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
@@ -497,18 +525,18 @@ function computeAgg(rows){
 }
 
 function applyFiltersAndRender(){
-  var fForn = document.getElementById('f-fornecedor').value;
+  var fForns = getSelForns();
   var fMesDe = document.getElementById('f-mes-de').value;
   var fMesAte = document.getElementById('f-mes-ate').value;
   var fContrato = document.getElementById('f-contrato').value;
   var fornsDoContrato = fContrato ? fornecedoresDoContrato(fContrato) : null;
   var rows = state.rows;
-  if (fForn) rows = rows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fForns.length) rows = rows.filter(function(r){ return fForns.indexOf(r.fornecedor)!==-1; });
   if (fornsDoContrato) rows = rows.filter(function(r){ return fornsDoContrato.indexOf(r.fornecedor)!==-1; });
   if (fMesDe) { var k=mesAnoSortKey(fMesDe); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k; }); }
   if (fMesAte) { var k2=mesAnoSortKey(fMesAte); rows = rows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k2; }); }
   var resumoRows = state.resumo;
-  if (fForn) resumoRows = resumoRows.filter(function(r){ return r.fornecedor===fForn; });
+  if (fForns.length) resumoRows = resumoRows.filter(function(r){ return fForns.indexOf(r.fornecedor)!==-1; });
   if (fornsDoContrato) resumoRows = resumoRows.filter(function(r){ return fornsDoContrato.indexOf(r.fornecedor)!==-1; });
   if (fMesDe) { var k3=mesAnoSortKey(fMesDe); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)>=k3; }); }
   if (fMesAte) { var k4=mesAnoSortKey(fMesAte); resumoRows = resumoRows.filter(function(r){ return mesAnoSortKey(r.mesano)<=k4; }); }
@@ -847,9 +875,9 @@ async function doPrintGeral(sel){
     (donutImg ? '<img width="360" height="320" src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
     '</div>';
   var comboHtml = comboImg ? '<div class="print-sec-title">BM\'S x FR\'S Emitidas por m&ecirc;s + saldo pendente</div><img width="1000" height="420" src="'+comboImg+'" style="width:100%;height:auto;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
-  var fForn = document.getElementById('f-fornecedor').value, fContrato = document.getElementById('f-contrato').value;
+  var fForns = getSelForns(), fContrato = document.getElementById('f-contrato').value;
   var fMesDe = document.getElementById('f-mes-de').value, fMesAte = document.getElementById('f-mes-ate').value;
-  var metaFiltros = 'Fornecedor: '+(fForn?esc(fForn):'Todos')+
+  var metaFiltros = 'Fornecedor: '+(fForns.length?esc(fForns.join(', ')):'Todos')+
     ' &middot; Contrato: '+(fContrato?esc(fContrato):'Todos')+
     ' &middot; Per&iacute;odo: '+(fMesDe||'in&iacute;cio')+' a '+(fMesAte||'fim');
   var headHtml = '<div class="print-head">'+
@@ -904,11 +932,11 @@ document.getElementById('c-btn-clear').addEventListener('click', function(){
   document.getElementById('c-mes-ate').value = '';
   applyFiltersAndRender();
 });
-['f-fornecedor','f-mes-de','f-mes-ate','f-contrato','c-mes-de','c-mes-ate'].forEach(function(id){
+['f-mes-de','f-mes-ate','f-contrato','c-mes-de','c-mes-ate'].forEach(function(id){
   document.getElementById(id).addEventListener('change', applyFiltersAndRender);
 });
 document.getElementById('btn-clear').addEventListener('click', function(){
-  document.getElementById('f-fornecedor').value = '';
+  fSel = []; renderFornChips();
   document.getElementById('f-mes-de').value = '';
   document.getElementById('f-mes-ate').value = '';
   document.getElementById('f-contrato').value = '';
@@ -1007,9 +1035,9 @@ function findResumo(rows, mes, forn){
   return null;
 }
 
-function renderFrsReport(rows){
+function renderFrsReport(rows, expandir){
   var wrap = document.getElementById('frs-groups');
-  if (!rows.length){ wrap.innerHTML = '<div class="empty-state">Nenhuma FR encontrada para o filtro selecionado.</div>'; return; }
+  if (!rows.length){ wrap.innerHTML = '<div class="empty-state">Nenhuma FR encontrada para o filtro/pesquisa selecionado.</div>'; return; }
   var meses = distinctSorted(rows,'mesano', function(x,y){ return mesAnoSortKey(y)-mesAnoSortKey(x); });
   wrap.innerHTML = meses.map(function(m){
     var groupRows = rows.filter(function(r){ return r.mesano===m; })
@@ -1023,7 +1051,7 @@ function renderFrsReport(rows){
         '<td>'+esc(r.contrato)+'</td>'+
         '<td>'+esc(r.bm)+'</td><td class="num">'+fmtBRL(r.valor)+'</td><td>'+esc(r.nf)+'</td></tr>';
     }).join('');
-    return '<details class="frs-group">'+
+    return '<details class="frs-group"'+(expandir?' open':'')+'>'+
       '<summary><span class="fg-mes">'+esc(m)+(bmLabel?' <span class="fg-bm">('+esc(bmLabel)+')</span>':'')+'</span><span class="fg-count">'+groupRows.length+' FR\'S</span><span class="fg-total">'+fmtBRL(total)+'</span></summary>'+
       '<div class="table-wrap"><table class="rep"><thead><tr><th>FR</th><th>Data</th><th>Fornecedor</th><th>Contrato</th><th>BM</th><th class="num">Valor (R$)</th><th>NF</th></tr></thead><tbody>'+body+'</tbody></table></div>'+
       '</details>';
@@ -1052,7 +1080,13 @@ function applyPendFiltersAndRender(){
   populateFrsContratoFilter(frsBase);
   var fContrato = document.getElementById('frs-contrato').value;
   var frsRows = fContrato ? frsBase.filter(function(r){ return r.contrato===fContrato; }) : frsBase;
-  renderFrsReport(frsRows);
+  // pesquisa por numero da FR (ou NF): com texto digitado, os meses com resultado ja abrem
+  var q = (document.getElementById('frs-busca').value || '').replace(/\s+/g,'').toLowerCase();
+  if (q) frsRows = frsRows.filter(function(r){
+    return String(r.fr||'').replace(/\s+/g,'').toLowerCase().indexOf(q)!==-1 || String(r.nf||'').replace(/\s+/g,'').toLowerCase().indexOf(q)!==-1;
+  });
+  document.getElementById('frs-busca-info').textContent = q ? (frsRows.length+' FR\'S encontrada(s), respeitando os filtros acima') : '';
+  renderFrsReport(frsRows, !!q);
   window.__lastFrsRows = frsRows;
   window.__lastFrsContrato = fContrato;
 }
@@ -1076,7 +1110,9 @@ document.getElementById('p-fornecedor').addEventListener('change', applyPendFilt
 document.getElementById('p-mes-de').addEventListener('change', applyPendFiltersAndRender);
 document.getElementById('p-mes-ate').addEventListener('change', applyPendFiltersAndRender);
 document.getElementById('frs-contrato').addEventListener('change', applyPendFiltersAndRender);
+document.getElementById('frs-busca').addEventListener('input', applyPendFiltersAndRender);
 document.getElementById('p-btn-clear').addEventListener('click', function(){
+  document.getElementById('frs-busca').value = '';
   document.getElementById('p-fornecedor').value = '';
   document.getElementById('p-mes-de').value = '';
   document.getElementById('p-mes-ate').value = '';
