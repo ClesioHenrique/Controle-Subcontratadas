@@ -49,6 +49,7 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .kpi-card{background:linear-gradient(135deg,var(--surface),var(--navy-100));border:1px solid var(--border);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);border-left:4px solid var(--info-blue);}
 .kpi-card.ok{border-left-color:var(--green-dark);}
 .kpi-card.accent{border-left-color:var(--navy);}
+.kpi-card{text-align:center;}
 .kpi-card .label{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
 .kpi-card .value{font-size:19px;font-weight:800;color:var(--navy);margin-top:4px;}
 .kpi-card .value .v-neg{color:var(--danger);}
@@ -136,6 +137,8 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .gauge-title{color:#e6ebf7;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;}
 .gauge-title .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .gauge-card svg{width:100%;max-width:200px;height:auto;display:block;margin:0 auto;}
+.panel-dark{background:#141a2e;border-color:#141a2e;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.panel-dark h2{color:#e6ebf7;text-transform:uppercase;letter-spacing:.06em;font-size:11px;text-align:center;}
 .period-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);}
 .period-info{border-left:4px solid var(--info-blue);padding:2px 12px;margin-right:4px;}
 .period-info .label{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
@@ -165,6 +168,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   .print-head .meta{font-size:11px;color:var(--text-muted);}
   .print-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;}
   .print-kpi{flex:1;min-width:110px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .print-kpi{text-align:center;}
   .print-kpi .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;}
   .print-kpi .v{font-size:16px;font-weight:800;color:var(--navy);}
   .print-content img{display:block;margin-left:auto;margin-right:auto;max-width:100%;break-inside:avoid;}
@@ -263,7 +267,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
       <h2>Valor medido por m&ecirc;s (R$ milh&otilde;es)</h2>
       <div class="chart-box" id="chart-mes"></div>
     </div>
-    <div class="panel">
+    <div class="panel panel-dark">
       <h2>Participa&ccedil;&atilde;o por fornecedor</h2>
       <div class="chart-box" id="chart-donut"></div>
     </div>
@@ -466,6 +470,7 @@ function applyFiltersAndRender(){
 }
 
 var CHART_GREEN='#92D050', CHART_INFO_BLUE='#2E7BC4', CHART_NAVY='#002B5C', CHART_WARN='#eda100';
+var GAUGE_BG='#141a2e'; // mesmo fundo escuro dos velocimetros
 var FORN_COLOR = { 'Lau rent':CHART_INFO_BLUE, 'Locar':CHART_GREEN, 'Univale':CHART_WARN, 'Total geral':'#4fd1e5' };
 var PLOTLY_CONFIG = { displayModeBar:false, responsive:true };
 
@@ -496,11 +501,22 @@ function renderAll(a, rows, resumoRows){
   });
   Plotly.react('chart-mes', traces, { barmode:'stack', margin:{t:10,b:60,l:50,r:10}, xaxis:{tickangle:-45}, yaxis:{title:'R$ M'}, legend:{orientation:'h', y:1.15}, font:{family:'Segoe UI',size:10} }, PLOTLY_CONFIG);
 
+  // mesmo visual dos velocimetros: fundo escuro, anel na cor do fornecedor, total no centro
   Plotly.react('chart-donut', [{
-    type:'pie', hole:.55, labels:a.porFornecedor.map(function(f){ return f.chave; }), values:a.porFornecedor.map(function(f){ return f.valor; }),
-    marker:{colors:a.porFornecedor.map(function(f){ return FORN_COLOR[f.chave]||CHART_NAVY; })}, textinfo:'label+percent',
-    hovertemplate:'%{label}: R$ %{value:,.2f}<extra></extra>'
-  }], { margin:{t:10,b:10,l:10,r:10}, showlegend:false, font:{family:'Segoe UI'} }, PLOTLY_CONFIG);
+    type:'pie', hole:.7, sort:false, direction:'clockwise', rotation:0,
+    labels:a.porFornecedor.map(function(f){ return f.chave; }), values:a.porFornecedor.map(function(f){ return f.valor; }),
+    marker:{colors:a.porFornecedor.map(function(f){ return FORN_COLOR[f.chave]||CHART_NAVY; }), line:{color:GAUGE_BG, width:3}},
+    textinfo:'percent', textposition:'outside', textfont:{color:'#e6ebf7', size:12},
+    hovertemplate:'%{label}: R$ %{value:,.2f} (%{percent})<extra></extra>'
+  }], {
+    margin:{t:24,b:40,l:20,r:20}, paper_bgcolor:GAUGE_BG, plot_bgcolor:GAUGE_BG,
+    showlegend:true, legend:{orientation:'h', x:.5, xanchor:'center', y:-.02, font:{color:'#cbd5f0', size:11}},
+    font:{family:'Segoe UI, Arial, sans-serif', color:'#e6ebf7'},
+    annotations:[
+      { x:.5, y:.56, xref:'paper', yref:'paper', showarrow:false, text:fmtBRLM(a.totalValor), font:{size:26, color:'#ffffff'} },
+      { x:.5, y:.44, xref:'paper', yref:'paper', showarrow:false, text:'TOTAL MEDIDO', font:{size:10, color:'#8fa0c4'} }
+    ]
+  }, PLOTLY_CONFIG);
 
   renderBmReconciliation(resumoRows, a.mesesUnicos);
   window.__lastGeralAgg = a;
