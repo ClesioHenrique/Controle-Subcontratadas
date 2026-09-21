@@ -754,10 +754,10 @@ async function doPrintGeral(sel){
     a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('');
   var chartsHtml = '<div class="print-sec-title">Valor medido por m&ecirc;s (R$ milh&otilde;es) &mdash; per&iacute;odo: '+esc(window.__lastChartPeriod||'-')+' &middot; Participa&ccedil;&atilde;o por fornecedor</div>'+
     '<div class="print-chart-row">' +
-    (barImg ? '<img src="'+barImg+'" style="flex:1.6;max-width:62%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
-    (donutImg ? '<img src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
+    (barImg ? '<img width="820" height="320" src="'+barImg+'" style="flex:1.6;max-width:62%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
+    (donutImg ? '<img width="360" height="320" src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
     '</div>';
-  var comboHtml = comboImg ? '<div class="print-sec-title">BM\'S x FR\'S Emitidas por m&ecirc;s + saldo pendente</div><img src="'+comboImg+'" style="width:100%;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
+  var comboHtml = comboImg ? '<div class="print-sec-title">BM\'S x FR\'S Emitidas por m&ecirc;s + saldo pendente</div><img width="1000" height="420" src="'+comboImg+'" style="width:100%;height:auto;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
   var fForn = document.getElementById('f-fornecedor').value, fContrato = document.getElementById('f-contrato').value;
   var fMesDe = document.getElementById('f-mes-de').value, fMesAte = document.getElementById('f-mes-ate').value;
   var metaFiltros = 'Fornecedor: '+(fForn?esc(fForn):'Todos')+
@@ -779,10 +779,18 @@ async function doPrintGeral(sel){
     (sel.charts ? '<div class="print-content">'+chartsHtml+'</div>' : '')+
     resumoG+
     tabelaHtml+
-    (sel.combo ? '<div class="print-content">'+comboHtml+'</div>' : '')+
-    '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx. Valores em Reais (R$).</div>';
+    /* depois da tabela (paisagem) o grafico segue na mesma orientacao, sem misturar folhas */
+    (sel.combo ? '<div class="print-content'+(sel.table?' wide-page':'')+'">'+comboHtml+'</div>' : '')+
+    '<div class="print-foot'+(sel.table?' wide-page':'')+'">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx. Valores em Reais (R$).</div>';
   document.getElementById('print-content').innerHTML = html;
+  await printReady();
   window.print();
+}
+/* espera as imagens (graficos em PNG) serem decodificadas antes de abrir a impressao; senao saem em branco */
+async function printReady(){
+  var imgs = [].slice.call(document.querySelectorAll('#print-content img'));
+  await Promise.all(imgs.map(function(i){ return i.decode ? i.decode().catch(function(){}) : Promise.resolve(); }));
+  await new Promise(function(r){ requestAnimationFrame(function(){ requestAnimationFrame(r); }); });
 }
 
 function initFromData(){
@@ -1052,6 +1060,7 @@ async function doPrintPend(sel){
     (sel.frs ? frsPrintHtml(frsRows) : '')+
     '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx (aba Resumo_GERAL / FR\'S_Emitidas). Valores em Reais (R$). Saldo Remanescente negativo = valor medido ainda pendente de emiss&atilde;o de FR.</div>';
   document.getElementById('print-content').innerHTML = html;
+  await printReady();
   window.print();
 }
 function frsPrintHtml(rows){
