@@ -135,7 +135,9 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .gauge-card{background:#141a2e;border-radius:12px;padding:10px 10px 6px;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;break-inside:avoid;}
 .gauge-title{color:#e6ebf7;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;}
 .gauge-title .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
-.gauge-card svg{width:100%;max-width:280px;height:auto;display:block;margin:0 auto;}
+.gauge-card svg{width:100%;max-width:200px;height:auto;display:block;margin:0 auto;}
+.gauge-row{margin-bottom:6px;}
+.gauge-row .gauge-card{padding:8px 8px 2px;}
 .gauge-legend{font-size:11px;color:var(--text-muted);margin:8px 0 0;}
 .modal-back{display:none;position:fixed;inset:0;background:rgba(0,20,45,.45);z-index:100;align-items:center;justify-content:center;}
 .modal-back.show{display:flex;}
@@ -166,7 +168,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   .print-content td{padding:4px 6px;border:1px solid var(--border);}
   .print-content td.num{text-align:right;}
   .print-foot{margin-top:16px;font-size:10px;color:var(--text-muted);}
-  #print-content .gauge-grid{grid-template-columns:repeat(3,1fr);margin-bottom:16px;}
+  #print-content .gauge-grid{grid-template-columns:repeat(4,1fr);margin-bottom:16px;}
   #print-content .print-sec-title{font-weight:800;color:var(--navy);font-size:12px;margin:6px 0;}
   #print-content .frs-print-month{break-inside:avoid;margin-bottom:12px;}
   .modal-back{display:none !important;}
@@ -234,6 +236,8 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
     </div>
 
   <div class="kpi-grid" id="kpi-grid"></div>
+  <div class="kpi-grid gauge-row" id="g-gauges"></div>
+  <div class="gauge-legend" style="margin:0 0 16px;">Veloc&iacute;metros: BM'S (previsto) x FR'S emitidas (real) &mdash; 100% = todo o valor dos BM'S j&aacute; virou FR emitida. Acompanham os filtros desta aba.</div>
 
   <div class="grid2">
     <div class="panel">
@@ -253,12 +257,6 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
       <tbody></tbody>
       <tfoot></tfoot>
     </table></div>
-  </div>
-
-  <div class="panel" style="margin-bottom:16px;">
-    <h2>Veloc&iacute;metro de faturamento por fornecedor &mdash; FR'S emitidas (real) &divide; BM'S (previsto)</h2>
-    <div class="gauge-grid" id="g-gauges"></div>
-    <div class="gauge-legend">100% = todo o valor dos BM'S j&aacute; virou FR emitida. Acompanha os filtros desta aba.</div>
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
@@ -449,7 +447,7 @@ function applyFiltersAndRender(){
 }
 
 var CHART_GREEN='#92D050', CHART_INFO_BLUE='#2E7BC4', CHART_NAVY='#002B5C', CHART_WARN='#eda100';
-var FORN_COLOR = { 'Lau rent':CHART_INFO_BLUE, 'Locar':CHART_GREEN, 'Univale':CHART_WARN };
+var FORN_COLOR = { 'Lau rent':CHART_INFO_BLUE, 'Locar':CHART_GREEN, 'Univale':CHART_WARN, 'Total geral':'#4fd1e5' };
 var PLOTLY_CONFIG = { displayModeBar:false, responsive:true };
 
 function kpiCard(label, value, sub, cls){
@@ -481,7 +479,9 @@ function renderAll(a, rows, resumoRows){
   var fornsG = ALL_FORNS.filter(function(f){ return resumoRows.some(function(r){ return r.fornecedor===f; }); });
   var aG = computePendAgg(resumoRows, fornsG);
   renderPendSummary(aG, fornsG);
-  document.getElementById('g-gauges').innerHTML = fornsG.length ? gaugesHtml(aG, fornsG) : '';
+  // mesma ordem dos cartoes de KPI (total, fornecedores por valor, periodo) para ficarem alinhados embaixo de cada um
+  var kpiOrder = a.porFornecedor.map(function(f){ return f.chave; });
+  document.getElementById('g-gauges').innerHTML = gaugeCards(computePendAgg(resumoRows, kpiOrder), kpiOrder) + '<div></div>';
 }
 
 function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
@@ -553,7 +553,7 @@ function renderComboChart(elId, meses, medidoArr, faturadoArr, pendAcumArr){
   }, PLOTLY_CONFIG);
 }
 
-/* ---- velocimetro: FR'S emitidas (real) x BM'S (previsto), 100% = BM inteiro virou FR ---- */
+/* ---- velocimetro: BM'S (previsto) x FR'S emitidas (real); % = FR / BM, 100% = BM inteiro virou FR ---- */
 function gaugeSvg(nome, medido, faturado){
   var p = medido>0 ? faturado/medido : 0;
   var pc = Math.max(0, Math.min(p,1));
@@ -580,15 +580,21 @@ function gaugeSvg(nome, medido, faturado){
   svg += '<line x1="'+fx(n1[0])+'" y1="'+fx(n1[1])+'" x2="'+fx(n2[0])+'" y2="'+fx(n2[1])+'" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>';
   svg += '<circle cx="'+cx+'" cy="'+cy+'" r="7" fill="#141a2e" stroke="#ffffff" stroke-width="2.5"/>';
   svg += '<text x="'+cx+'" y="170" text-anchor="middle" font-size="30" font-weight="300" fill="#ffffff">'+fmtPct(p)+'</text>';
-  svg += '<text x="'+cx+'" y="188" text-anchor="middle" font-size="9.5" fill="#8fa0c4" letter-spacing=".5">FR\'S REAL &#247; BM\'S PREVISTO</text>';
-  svg += '<text x="'+cx+'" y="205" text-anchor="middle" font-size="10" fill="#cbd5f0">'+fmtBRLM(faturado)+' de '+fmtBRLM(medido)+'</text>';
+  svg += '<text x="'+cx+'" y="188" text-anchor="middle" font-size="9.5" fill="#8fa0c4" letter-spacing=".5">BM\'S PREVISTO x FR\'S REAL</text>';
+  svg += '<text x="'+cx+'" y="205" text-anchor="middle" font-size="10" fill="#cbd5f0">'+fmtBRLM(medido)+' x '+fmtBRLM(faturado)+'</text>';
   return svg + '</svg>';
 }
+function gaugeCard(nome, medido, faturado){
+  var col = FORN_COLOR[nome] || CHART_NAVY;
+  return '<div class="gauge-card"><div class="gauge-title"><span class="dot" style="background:'+col+'"></span>'+esc(nome)+'</div>'+gaugeSvg(nome, medido, faturado)+'</div>';
+}
+/* velocimetro geral primeiro, depois um por fornecedor */
+function gaugeCards(a, forns){
+  return gaugeCard('Total geral', a.totalMedido, a.totalFaturado) +
+    forns.map(function(f){ var d = a.porFornecedor[f]; return gaugeCard(f, d.medido, d.faturado); }).join('');
+}
 function gaugesHtml(a, forns){
-  return '<div class="gauge-grid">'+forns.map(function(f){
-    var d = a.porFornecedor[f], col = FORN_COLOR[f] || CHART_NAVY;
-    return '<div class="gauge-card"><div class="gauge-title"><span class="dot" style="background:'+col+'"></span>'+esc(f)+'</div>'+gaugeSvg(f, d.medido, d.faturado)+'</div>';
-  }).join('')+'</div>';
+  return '<div class="gauge-grid">'+gaugeCards(a, forns)+'</div>';
 }
 
 /* ---- escolha do que imprimir (ambas as abas) ---- */
@@ -597,7 +603,7 @@ var PRINT_OPTIONS = {
     { id:'kpis',   label:'Indicadores (cartões do topo)', on:true },
     { id:'charts', label:'Gráficos: valor medido por mês e participação por fornecedor', on:true },
     { id:'resumo', label:'Resumo final — valores pendentes por subcontrato', on:true },
-    { id:'gauges', label:'Velocímetros por fornecedor (FR\'S real ÷ BM\'S previsto)', on:true },
+    { id:'gauges', label:'Velocímetros geral e por fornecedor (BM\'S previsto x FR\'S real)', on:true },
     { id:'combo',  label:'Gráfico BM\'S x FR\'S Emitidas + saldo pendente', on:true },
     { id:'table',  label:'Tabela BM\'S x FR\'S Emitidas x Saldo Pendente (por mês)', on:true }
   ],
@@ -661,7 +667,7 @@ async function doPrintGeral(sel){
     }).join('')+
     (fornsG.length>1 ? '<tr style="font-weight:800;"><td>Total Geral</td><td class="num">'+fmtBRL(aG.totalMedido)+'</td><td class="num">'+fmtBRL(aG.totalFaturado)+'</td><td class="num">'+fmtBRL(aG.totalDiferenca)+'</td><td class="num">'+fmtPct(aG.totalMedido?aG.totalFaturado/aG.totalMedido:0)+'</td></tr>' : '')+
     '</tbody></table></div>' : '';
-  var gaugesG = (sel.gauges && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Velocímetro de faturamento por fornecedor &mdash; FR\'S emitidas (real) &divide; BM\'S (previsto)</div>'+gaugesHtml(aG, fornsG)+'</div>' : '';
+  var gaugesG = (sel.gauges && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Velocímetros de faturamento, geral e por fornecedor &mdash; BM\'S (previsto) x FR\'S emitidas (real)</div>'+gaugesHtml(aG, fornsG)+'</div>' : '';
   var kpiHtml = '<div class="print-kpi"><div class="l">Valor total medido</div><div class="v">'+fmtBRLM(a.totalValor)+'</div></div>' +
     a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('') +
     '<div class="print-kpi"><div class="l">Período</div><div class="v" style="font-size:13px;">'+(a.mesesUnicos[0]||'-')+' a '+(a.mesesUnicos[a.mesesUnicos.length-1]||'-')+'</div></div>';
