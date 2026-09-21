@@ -130,6 +130,7 @@ table.pivot th.mescol{background:var(--navy-100);color:var(--navy);}
 table.pivot th.bmcol{background:var(--navy-100);color:var(--navy);text-align:center;width:58px;min-width:58px;}
 table.pivot td.bmcol{text-align:center;font-weight:700;color:var(--navy);background:#f7f9fb;width:58px;min-width:58px;white-space:nowrap;}
 table.pivot th.sub, table.pivot td{padding:6px 8px;}
+table.pivot td{white-space:nowrap;} /* valores negativos nao quebram: todas as linhas com a mesma altura */
 table.pivot td.num, table.pivot th.sub{font-size:12px;}
 
 .gauge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;}
@@ -170,6 +171,7 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .modal label input{margin-top:2px;}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px;}
 #print-content{display:none;}
+@page wide{size:A4 landscape;margin:10mm;}
 @media print{
   @page{margin:12mm;}
   /* tudo que nao e a impressao sai do fluxo (display:none) para nao gerar paginas em branco */
@@ -189,6 +191,10 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   .print-chart-row{display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:16px;break-inside:avoid;}
   .print-content table{width:100%;border-collapse:collapse;font-size:10px;}
   .print-content thead{display:table-header-group;}
+  .print-content tfoot{display:table-row-group;}
+  .page-break-before{break-before:page;page-break-before:always;}
+  .wide-page{page:wide;}
+  .wide-page table.pivot th, .wide-page table.pivot td, .wide-page table.pivot td.num, .wide-page table.pivot th.sub{font-size:8px;padding:3px 4px;white-space:nowrap;}
   .print-content tr{break-inside:avoid;}
   .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:5px 6px;border:1px solid var(--border);}
   .print-content th.num{text-align:right;}
@@ -757,18 +763,22 @@ async function doPrintGeral(sel){
   var metaFiltros = 'Fornecedor: '+(fForn?esc(fForn):'Todos')+
     ' &middot; Contrato: '+(fContrato?esc(fContrato):'Todos')+
     ' &middot; Per&iacute;odo: '+(fMesDe||'in&iacute;cio')+' a '+(fMesAte||'fim');
-  var html = '<div class="print-head">'+
+  var headHtml = '<div class="print-head">'+
     '<div class="co">Techint Engenharia e Constru&ccedil;&atilde;o &middot; Painel de Confronto</div>'+
     '<h1>Controle de Subcontratadas &mdash; Boletins de Medi&ccedil;&atilde;o</h1>'+
     '<div class="meta">Cess&atilde;o USM &middot; Lau-Rent, Locar e Univale &middot; Gerado em '+hoje+'</div>'+
     '<div class="meta">'+metaFiltros+'</div>'+
-    '</div>'+
+    '</div>';
+  // a tabela por mes tem 14 colunas: vai sozinha numa folha nova, em paisagem, com linhas de mesma altura
+  var antes = sel.kpis || sel.gauges || sel.charts || sel.resumo;
+  var tabelaHtml = sel.table ? '<div class="print-content wide-page'+(antes?' page-break-before':'')+'">'+(antes?'':headHtml)+'<div class="print-sec-title">BM\'S x FR\'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</div>'+document.getElementById('tbl-bm').outerHTML+'</div>' : '';
+  var html = (sel.table && !antes ? '' : headHtml)+
     /* mesma sequencia do painel: KPIs, velocimetros, graficos, resumo final, tabela por mes, grafico BM x FR */
     (sel.kpis ? '<div class="print-kpis">'+kpiHtml+'</div>' : '')+
     gaugesG+
     (sel.charts ? '<div class="print-content">'+chartsHtml+'</div>' : '')+
     resumoG+
-    (sel.table ? '<div class="print-content"><div class="print-sec-title">BM\'S x FR\'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</div>'+document.getElementById('tbl-bm').outerHTML+'</div>' : '')+
+    tabelaHtml+
     (sel.combo ? '<div class="print-content">'+comboHtml+'</div>' : '')+
     '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx. Valores em Reais (R$).</div>';
   document.getElementById('print-content').innerHTML = html;
