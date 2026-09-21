@@ -248,6 +248,12 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   </div>
 
   <div class="panel" style="margin-bottom:16px;">
+    <h2>Veloc&iacute;metro de faturamento por fornecedor &mdash; FR'S emitidas (real) &divide; BM'S (previsto)</h2>
+    <div class="gauge-grid" id="g-gauges"></div>
+    <div class="gauge-legend">100% = todo o valor dos BM'S j&aacute; virou FR emitida. Acompanha os filtros desta aba.</div>
+  </div>
+
+  <div class="panel" style="margin-bottom:16px;">
     <h2>BM'S x FR'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</h2>
 
     <div class="filters">
@@ -484,6 +490,8 @@ function renderAll(a, rows, resumoRows){
   renderBmReconciliation(resumoRows, a.mesesUnicos);
   window.__lastGeralAgg = a;
   window.__lastGeralResumo = resumoRows;
+  var fornsG = ALL_FORNS.filter(function(f){ return resumoRows.some(function(r){ return r.fornecedor===f; }); });
+  document.getElementById('g-gauges').innerHTML = fornsG.length ? gaugesHtml(computePendAgg(resumoRows, fornsG), fornsG) : '';
 }
 
 function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
