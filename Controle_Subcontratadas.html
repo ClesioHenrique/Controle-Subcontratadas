@@ -43,7 +43,8 @@ html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:
 .filter-field label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);}
 .filter-field select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;min-width:130px;}
 .filter-clear{align-self:flex-end;}
-.filter-field input[type=search]{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;min-width:220px;}
+.filter-field input[type=search], .filter-field textarea{padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;font-family:inherit;min-width:220px;}
+.filter-field textarea{width:min(440px,80vw);resize:vertical;min-height:32px;max-height:160px;line-height:1.35;}
 .chips{display:flex;flex-wrap:wrap;gap:6px;}
 .chip{border:1px solid var(--border);background:var(--surface);color:var(--text);padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;}
 .chip:hover{background:#f2f5f8;}
@@ -393,11 +394,12 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
         <div class="filter-field"><label>Contrato</label>
           <select id="frs-contrato"><option value="">Todos os contratos</option></select>
         </div>
-        <div class="filter-field"><label>Pesquisar FR</label>
-          <input type="search" id="frs-busca" placeholder="N&ordm; da FR ou NF" autocomplete="off">
+        <div class="filter-field"><label>Consultar FR'S (1 a 50)</label>
+          <textarea id="frs-busca" rows="1" placeholder="N&ordm; da FR ou NF &mdash; cole at&eacute; 50, separadas por v&iacute;rgula, espa&ccedil;o ou linha" autocomplete="off" spellcheck="false"></textarea>
         </div>
-        <span class="src-info" id="frs-busca-info" style="align-self:flex-end;padding-bottom:8px;"></span>
+        <button class="btn filter-clear" id="frs-busca-clear" type="button">Limpar consulta</button>
       </div>
+      <div class="src-info" id="frs-busca-info" style="margin:-4px 0 10px;"></div>
       <div id="frs-groups"></div>
     </div>
 
@@ -1063,6 +1065,17 @@ function dataSortKey(d){
   return parseInt(p[2],10)*10000 + parseInt(p[1],10)*100 + parseInt(p[0],10);
 }
 
+/* consulta de FR'S: de 1 ate 50 numeros de uma vez, separados por virgula, ponto e virgula, espaco ou quebra de linha */
+var FRS_BUSCA_MAX = 50;
+function parseFrBusca(texto){
+  var vistos = {}, tokens = [];
+  String(texto||'').split(/[\s,;]+/).forEach(function(t){
+    t = t.trim().toLowerCase();
+    if (t && !vistos[t]){ vistos[t] = true; tokens.push(t); }
+  });
+  var cortou = tokens.length > FRS_BUSCA_MAX;
+  return { tokens: tokens.slice(0, FRS_BUSCA_MAX), cortou: cortou };
+}
 function applyPendFiltersAndRender(){
   var fForn = document.getElementById('p-fornecedor').value;
   var fMesDe = document.getElementById('p-mes-de').value;
@@ -1081,12 +1094,24 @@ function applyPendFiltersAndRender(){
   var fContrato = document.getElementById('frs-contrato').value;
   var frsRows = fContrato ? frsBase.filter(function(r){ return r.contrato===fContrato; }) : frsBase;
   // pesquisa por numero da FR (ou NF): com texto digitado, os meses com resultado ja abrem
-  var q = (document.getElementById('frs-busca').value || '').replace(/\s+/g,'').toLowerCase();
-  if (q) frsRows = frsRows.filter(function(r){
-    return String(r.fr||'').replace(/\s+/g,'').toLowerCase().indexOf(q)!==-1 || String(r.nf||'').replace(/\s+/g,'').toLowerCase().indexOf(q)!==-1;
-  });
-  document.getElementById('frs-busca-info').textContent = q ? (frsRows.length+' FR\'S encontrada(s), respeitando os filtros acima') : '';
-  renderFrsReport(frsRows, !!q);
+  var busca = parseFrBusca(document.getElementById('frs-busca').value);
+  var info = document.getElementById('frs-busca-info');
+  if (busca.tokens.length){
+    var toks = busca.tokens, lista = toks.length>1;   // 1 termo: "contem"; varios termos: numero exato da FR ou da NF
+    var norm = function(v){ return String(v==null?'':v).replace(/\s+/g,'').toLowerCase(); };
+    var casa = function(r, t){ var fr = norm(r.fr), nf = norm(r.nf); return lista ? (fr===t || nf===t) : (fr.indexOf(t)!==-1 || nf.indexOf(t)!==-1); };
+    frsRows = frsRows.filter(function(r){ return toks.some(function(t){ return casa(r, t); }); });
+    var msg = frsRows.length+' FR\'S encontrada(s)';
+    if (lista){
+      var achou = toks.filter(function(t){ return frsRows.some(function(r){ return casa(r, t); }); }).length;
+      var faltam = toks.filter(function(t){ return !frsRows.some(function(r){ return casa(r, t); }); });
+      msg = achou+' de '+toks.length+' FR\'S consultadas encontradas';
+      if (faltam.length) msg += ' · não encontradas: '+faltam.slice(0,12).join(', ')+(faltam.length>12?' (+'+(faltam.length-12)+')':'');
+    }
+    if (busca.cortou) msg += ' · limite de '+FRS_BUSCA_MAX+' FR\'S por consulta: as demais foram ignoradas';
+    info.textContent = msg + ' — respeitando os filtros acima';
+  } else info.textContent = '';
+  renderFrsReport(frsRows, busca.tokens.length>0);
   window.__lastFrsRows = frsRows;
   window.__lastFrsContrato = fContrato;
 }
@@ -1110,9 +1135,16 @@ document.getElementById('p-fornecedor').addEventListener('change', applyPendFilt
 document.getElementById('p-mes-de').addEventListener('change', applyPendFiltersAndRender);
 document.getElementById('p-mes-ate').addEventListener('change', applyPendFiltersAndRender);
 document.getElementById('frs-contrato').addEventListener('change', applyPendFiltersAndRender);
-document.getElementById('frs-busca').addEventListener('input', applyPendFiltersAndRender);
+document.getElementById('frs-busca').addEventListener('input', function(){
+  // a caixa cresce conforme a lista colada (ate ~6 linhas)
+  this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight+2, 140)+'px';
+  applyPendFiltersAndRender();
+});
+document.getElementById('frs-busca-clear').addEventListener('click', function(){
+  var b = document.getElementById('frs-busca'); b.value = ''; b.style.height = ''; applyPendFiltersAndRender();
+});
 document.getElementById('p-btn-clear').addEventListener('click', function(){
-  document.getElementById('frs-busca').value = '';
+  document.getElementById('frs-busca').value = ''; document.getElementById('frs-busca').style.height = '';
   document.getElementById('p-fornecedor').value = '';
   document.getElementById('p-mes-de').value = '';
   document.getElementById('p-mes-ate').value = '';
