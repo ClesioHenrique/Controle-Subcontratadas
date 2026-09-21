@@ -136,6 +136,11 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .gauge-title{color:#e6ebf7;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:6px;}
 .gauge-title .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .gauge-card svg{width:100%;max-width:200px;height:auto;display:block;margin:0 auto;}
+.period-bar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.period-info{border-left:4px solid var(--info-blue);padding:2px 12px;margin-right:4px;}
+.period-info .label{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;}
+.period-info .value{font-size:17px;font-weight:800;color:var(--navy);margin-top:2px;}
+.period-info .sub{font-size:11px;color:var(--text-muted);}
 .gauge-row{margin-bottom:6px;}
 .gauge-row .gauge-card{padding:8px 8px 2px;}
 .gauge-legend{font-size:11px;color:var(--text-muted);margin:8px 0 0;}
@@ -149,10 +154,11 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px;}
 #print-content{display:none;}
 @media print{
-  body *{visibility:hidden;}
-  .confronto-banner, .toolbar, .filters, .tabnav, #progress-panel, .btn, .notes{display:none !important;}
-  #print-content, #print-content *{visibility:visible;}
-  #print-content{display:block;position:absolute;left:0;top:0;width:100%;padding:0;}
+  @page{margin:12mm;}
+  /* tudo que nao e a impressao sai do fluxo (display:none) para nao gerar paginas em branco */
+  html, body{background:#fff !important;height:auto !important;margin:0 !important;padding:0 !important;}
+  body > *:not(#print-content){display:none !important;}
+  #print-content{display:block !important;position:static;width:100%;padding:0;}
   .print-head{border-bottom:3px solid var(--navy);padding-bottom:10px;margin-bottom:16px;}
   .print-head .co{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--navy);}
   .print-head h1{font-size:18px;color:var(--navy);margin:4px 0 2px;}
@@ -161,15 +167,18 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
   .print-kpi{flex:1;min-width:110px;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
   .print-kpi .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:700;}
   .print-kpi .v{font-size:16px;font-weight:800;color:var(--navy);}
-  .print-content img{max-width:100%;}
+  .print-content img{display:block;margin-left:auto;margin-right:auto;max-width:100%;break-inside:avoid;}
+  .print-chart-row{display:flex;justify-content:center;align-items:center;gap:14px;margin-bottom:16px;break-inside:avoid;}
   .print-content table{width:100%;border-collapse:collapse;font-size:10px;}
+  .print-content thead{display:table-header-group;}
+  .print-content tr{break-inside:avoid;}
   .print-content th{background:var(--navy-100);color:var(--navy);text-align:left;padding:5px 6px;border:1px solid var(--border);}
   .print-content th.num{text-align:right;}
   .print-content td{padding:4px 6px;border:1px solid var(--border);}
   .print-content td.num{text-align:right;}
   .print-foot{margin-top:16px;font-size:10px;color:var(--text-muted);}
-  #print-content .gauge-grid{grid-template-columns:repeat(4,1fr);margin-bottom:16px;}
-  #print-content .print-sec-title{font-weight:800;color:var(--navy);font-size:12px;margin:6px 0;}
+  #print-content .gauge-grid{grid-template-columns:repeat(4,1fr);margin-bottom:16px;break-inside:avoid;}
+  #print-content .print-sec-title{font-weight:800;color:var(--navy);font-size:12px;margin:6px 0;break-after:avoid;}
   #print-content .frs-print-month{break-inside:avoid;margin-bottom:12px;}
   .modal-back{display:none !important;}
 }
@@ -241,6 +250,16 @@ table.pivot td.num, table.pivot th.sub{font-size:12px;}
 
   <div class="grid2">
     <div class="panel">
+      <div class="period-bar">
+        <div class="period-info"><div class="label">Per&iacute;odo</div><div class="value" id="c-periodo">-</div><div class="sub" id="c-periodo-sub"></div></div>
+        <div class="filter-field"><label>De</label>
+          <select id="c-mes-de"><option value="">--</option></select>
+        </div>
+        <div class="filter-field"><label>At&eacute;</label>
+          <select id="c-mes-ate"><option value="">--</option></select>
+        </div>
+        <button class="btn filter-clear" id="c-btn-clear">Todo o per&iacute;odo</button>
+      </div>
       <h2>Valor medido por m&ecirc;s (R$ milh&otilde;es)</h2>
       <div class="chart-box" id="chart-mes"></div>
     </div>
@@ -392,7 +411,7 @@ function populateFilters(){
   selF.innerHTML = '<option value="">Todos</option>';
   distinctSorted(c,'fornecedor').forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; selF.appendChild(o); });
   var meses = distinctSorted(c,'mesano', function(a,b){ return mesAnoSortKey(a)-mesAnoSortKey(b); });
-  ['f-mes-de','f-mes-ate'].forEach(function(id){
+  ['f-mes-de','f-mes-ate','c-mes-de','c-mes-ate'].forEach(function(id){
     var sel = document.getElementById(id); sel.innerHTML = '<option value="">--</option>';
     meses.slice().reverse().forEach(function(v){ var o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
   });
@@ -457,12 +476,22 @@ function kpiCard(label, value, sub, cls){
 function renderAll(a, rows, resumoRows){
   document.getElementById('kpi-grid').innerHTML =
     kpiCard('Valor total medido', fmtBRLM(a.totalValor), fmtInt(a.totalQtd)+' BM\'S', 'accent') +
-    a.porFornecedor.map(function(f){ return kpiCard(f.chave, fmtBRLM(f.valor), fmtPct(a.totalValor?f.valor/a.totalValor:0), 'ok'); }).join('') +
-    kpiCard('Período', (a.mesesUnicos[0]||'-')+' a '+(a.mesesUnicos[a.mesesUnicos.length-1]||'-'), a.mesesUnicos.length+' meses');
+    a.porFornecedor.map(function(f){ return kpiCard(f.chave, fmtBRLM(f.valor), fmtPct(a.totalValor?f.valor/a.totalValor:0), 'ok'); }).join('');
 
-  var mesesDesc = a.mesesUnicos.slice().reverse();
+  // periodo proprio do grafico "Valor medido por mes" (dentro do que os filtros da aba ja deixaram)
+  var cDe = document.getElementById('c-mes-de').value, cAte = document.getElementById('c-mes-ate').value;
+  var kDe = cDe ? mesAnoSortKey(cDe) : 0, kAte = cAte ? mesAnoSortKey(cAte) : Infinity;
+  var idxC = [];
+  a.mesesUnicos.forEach(function(m, i){ var k = mesAnoSortKey(m); if (k>=kDe && k<=kAte) idxC.push(i); });
+  var mesesC = idxC.map(function(i){ return a.mesesUnicos[i]; });
+  var periodoTxt = (mesesC[0]||'-')+' a '+(mesesC[mesesC.length-1]||'-');
+  document.getElementById('c-periodo').textContent = periodoTxt;
+  document.getElementById('c-periodo-sub').textContent = mesesC.length+' meses';
+  window.__lastChartPeriod = periodoTxt;
+
+  var mesesDesc = mesesC.slice().reverse();
   var traces = Object.keys(a.fornecedoresPorMes).map(function(f){
-    return { type:'bar', name:f, x:mesesDesc, y:a.fornecedoresPorMes[f].slice().reverse().map(function(v){ return v/1e6; }),
+    return { type:'bar', name:f, x:mesesDesc, y:idxC.slice().reverse().map(function(i){ return a.fornecedoresPorMes[f][i]/1e6; }),
       marker:{color:FORN_COLOR[f]||CHART_NAVY}, hovertemplate:f+' — %{x}: R$ %{y:.2f} M<extra></extra>' };
   });
   Plotly.react('chart-mes', traces, { barmode:'stack', margin:{t:10,b:60,l:50,r:10}, xaxis:{tickangle:-45}, yaxis:{title:'R$ M'}, legend:{orientation:'h', y:1.15}, font:{family:'Segoe UI',size:10} }, PLOTLY_CONFIG);
@@ -479,9 +508,9 @@ function renderAll(a, rows, resumoRows){
   var fornsG = ALL_FORNS.filter(function(f){ return resumoRows.some(function(r){ return r.fornecedor===f; }); });
   var aG = computePendAgg(resumoRows, fornsG);
   renderPendSummary(aG, fornsG);
-  // mesma ordem dos cartoes de KPI (total, fornecedores por valor, periodo) para ficarem alinhados embaixo de cada um
+  // mesma ordem dos cartoes de KPI (total e fornecedores por valor) para ficarem alinhados embaixo de cada um
   var kpiOrder = a.porFornecedor.map(function(f){ return f.chave; });
-  document.getElementById('g-gauges').innerHTML = gaugeCards(computePendAgg(resumoRows, kpiOrder), kpiOrder) + '<div></div>';
+  document.getElementById('g-gauges').innerHTML = gaugeCards(computePendAgg(resumoRows, kpiOrder), kpiOrder);
 }
 
 function pendCls(v){ return v>0.005?'neg':(v<-0.005?'pos':''); }
@@ -601,11 +630,11 @@ function gaugesHtml(a, forns){
 var PRINT_OPTIONS = {
   geral: [
     { id:'kpis',   label:'Indicadores (cartões do topo)', on:true },
-    { id:'charts', label:'Gráficos: valor medido por mês e participação por fornecedor', on:true },
-    { id:'resumo', label:'Resumo final — valores pendentes por subcontrato', on:true },
     { id:'gauges', label:'Velocímetros geral e por fornecedor (BM\'S previsto x FR\'S real)', on:true },
-    { id:'combo',  label:'Gráfico BM\'S x FR\'S Emitidas + saldo pendente', on:true },
-    { id:'table',  label:'Tabela BM\'S x FR\'S Emitidas x Saldo Pendente (por mês)', on:true }
+    { id:'charts', label:'Gráficos: valor medido por mês (com o período escolhido) e participação por fornecedor', on:true },
+    { id:'resumo', label:'Resumo final — valores pendentes por subcontrato', on:true },
+    { id:'table',  label:'Tabela BM\'S x FR\'S Emitidas x Saldo Pendente (por mês)', on:true },
+    { id:'combo',  label:'Gráfico BM\'S x FR\'S Emitidas + saldo pendente', on:true }
   ],
   pend: [
     { id:'kpis',     label:'Indicadores (cartões do topo)', on:true },
@@ -669,13 +698,13 @@ async function doPrintGeral(sel){
     '</tbody></table></div>' : '';
   var gaugesG = (sel.gauges && fornsG.length) ? '<div class="print-content"><div class="print-sec-title">Velocímetros de faturamento, geral e por fornecedor &mdash; BM\'S (previsto) x FR\'S emitidas (real)</div>'+gaugesHtml(aG, fornsG)+'</div>' : '';
   var kpiHtml = '<div class="print-kpi"><div class="l">Valor total medido</div><div class="v">'+fmtBRLM(a.totalValor)+'</div></div>' +
-    a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('') +
-    '<div class="print-kpi"><div class="l">Período</div><div class="v" style="font-size:13px;">'+(a.mesesUnicos[0]||'-')+' a '+(a.mesesUnicos[a.mesesUnicos.length-1]||'-')+'</div></div>';
-  var chartsHtml = '<div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px;">' +
+    a.porFornecedor.map(function(f){ return '<div class="print-kpi"><div class="l">'+esc(f.chave)+'</div><div class="v">'+fmtBRLM(f.valor)+'</div></div>'; }).join('');
+  var chartsHtml = '<div class="print-sec-title">Valor medido por m&ecirc;s (R$ milh&otilde;es) &mdash; per&iacute;odo: '+esc(window.__lastChartPeriod||'-')+' &middot; Participa&ccedil;&atilde;o por fornecedor</div>'+
+    '<div class="print-chart-row">' +
     (barImg ? '<img src="'+barImg+'" style="flex:1.6;max-width:62%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
     (donutImg ? '<img src="'+donutImg+'" style="flex:1;max-width:36%;border:1px solid #dbe2ea;border-radius:6px;">' : '') +
     '</div>';
-  var comboHtml = comboImg ? '<img src="'+comboImg+'" style="width:100%;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
+  var comboHtml = comboImg ? '<div class="print-sec-title">BM\'S x FR\'S Emitidas por m&ecirc;s + saldo pendente</div><img src="'+comboImg+'" style="width:100%;border:1px solid #dbe2ea;border-radius:6px;margin-bottom:16px;">' : '';
   var fForn = document.getElementById('f-fornecedor').value, fContrato = document.getElementById('f-contrato').value;
   var fMesDe = document.getElementById('f-mes-de').value, fMesAte = document.getElementById('f-mes-ate').value;
   var metaFiltros = 'Fornecedor: '+(fForn?esc(fForn):'Todos')+
@@ -687,12 +716,13 @@ async function doPrintGeral(sel){
     '<div class="meta">Cess&atilde;o USM &middot; Lau-Rent, Locar e Univale &middot; Gerado em '+hoje+'</div>'+
     '<div class="meta">'+metaFiltros+'</div>'+
     '</div>'+
+    /* mesma sequencia do painel: KPIs, velocimetros, graficos, resumo final, tabela por mes, grafico BM x FR */
     (sel.kpis ? '<div class="print-kpis">'+kpiHtml+'</div>' : '')+
+    gaugesG+
     (sel.charts ? '<div class="print-content">'+chartsHtml+'</div>' : '')+
     resumoG+
-    gaugesG+
+    (sel.table ? '<div class="print-content"><div class="print-sec-title">BM\'S x FR\'S Emitidas x Saldo Pendente &mdash; por m&ecirc;s e subcontratada</div>'+document.getElementById('tbl-bm').outerHTML+'</div>' : '')+
     (sel.combo ? '<div class="print-content">'+comboHtml+'</div>' : '')+
-    (sel.table ? '<div class="print-content">'+document.getElementById('tbl-bm').outerHTML+'</div>' : '')+
     '<div class="print-foot">Documento gerado automaticamente a partir de Controle_Cessionarias_Total_Rev04.xlsx. Valores em Reais (R$).</div>';
   document.getElementById('print-content').innerHTML = html;
   window.print();
@@ -715,7 +745,12 @@ function initFromData(){
   applyPendFiltersAndRender();
 }
 
-['f-fornecedor','f-mes-de','f-mes-ate','f-contrato'].forEach(function(id){
+document.getElementById('c-btn-clear').addEventListener('click', function(){
+  document.getElementById('c-mes-de').value = '';
+  document.getElementById('c-mes-ate').value = '';
+  applyFiltersAndRender();
+});
+['f-fornecedor','f-mes-de','f-mes-ate','f-contrato','c-mes-de','c-mes-ate'].forEach(function(id){
   document.getElementById(id).addEventListener('change', applyFiltersAndRender);
 });
 document.getElementById('btn-clear').addEventListener('click', function(){
